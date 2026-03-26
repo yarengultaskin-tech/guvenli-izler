@@ -55,7 +55,7 @@ guvenli_izler/
 ### 1. Depoyu Klonlayın
 ```bash
 git clone https://github.com/yarengultaskin-tech/guvenli-izler.git
-cd guvenli_izler
+cd guvenli-izler
 ```
 
 ### 2. Sanal Ortam Oluşturun ve Aktif Edin
