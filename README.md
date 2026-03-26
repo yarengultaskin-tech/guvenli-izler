@@ -54,7 +54,7 @@ guvenli_izler/
 
 ### 1. Depoyu Klonlayın
 ```bash
-git clone https://github.com/yarengultaskin-tech/guvenli_izler.git
+git clone https://github.com/yarengultaskin-tech/guvenli-izler.git
 cd guvenli_izler
 ```
 
