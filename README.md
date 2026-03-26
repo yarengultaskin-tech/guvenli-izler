@@ -111,7 +111,7 @@ Katkılarınızı memnuniyetle karşılıyoruz! Lütfen bir `issue` açın veya 
 
 ## 📄 Lisans
 
-Bu proje [MIT Lisansı](LICENSE) kapsamında lisanslanmıştır.
+Bu proje [MIT Lisansı](https://opensource.org/licenses/MIT) kapsamında lisanslanmıştır.
 
 ---
 
