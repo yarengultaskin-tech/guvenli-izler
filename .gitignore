@@ -1,0 +1,14 @@
+# Büyük veri dosyaları (Hata veren yer burası)
+data/
+osmnx_cache/
+
+# Şifreler ve Gizli Dosyalar
+.env
+
+# Gereksiz sistem dosyaları
+venv/
+__pycache__/
+*.pyc
+.DS_Store 
+data/osmnx_cache/
+cache/
