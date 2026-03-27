@@ -416,6 +416,44 @@ def _build_route_journal_rows(
     return rows
 
 
+def _drop_empty_columns(rows: list[dict[str, Any]]) -> list[dict[str, Any]]:
+    """Tüm satırlarda boş olan sütunları tablodan kaldır."""
+    if not rows:
+        return rows
+    keys: set[str] = set()
+    for r in rows:
+        if isinstance(r, dict):
+            keys.update(r.keys())
+    keep: list[str] = []
+    for k in keys:
+        has_value = False
+        for r in rows:
+            v = r.get(k) if isinstance(r, dict) else None
+            if v not in (None, "", [], {}):
+                has_value = True
+                break
+        if has_value:
+            keep.append(k)
+
+    # Okunurluk için temel kolon sırası
+    preferred = [
+        "segment",
+        "rota_metre",
+        "segment_puani",
+        "karakol_m",
+        "metro_m",
+        "eczane_m",
+        "taksi_m",
+        "lamba_m",
+        "acik_noktalar",
+        "popup_notu",
+        "popup_nokta",
+        "popup_koordinat",
+    ]
+    ordered_keep = [k for k in preferred if k in keep] + [k for k in keep if k not in preferred]
+    return [{k: r.get(k) for k in ordered_keep} for r in rows if isinstance(r, dict)]
+
+
 def _bucket_poi_summary(segment_indices: list[int], segments: list[dict[str, Any]]) -> str:
     """Kart altına kısa güvenli nokta / lamba özeti."""
     bits: list[str] = []
@@ -1540,7 +1578,7 @@ def main() -> None:
             st.subheader("Yol Günlüğü")
             st.caption("Rotayı **200 m** mesafe aralıklarına böldüm; her kartta o bölgeye düşen rehber notu var.")
             if journal_rows:
-                st.table(journal_rows[:120])
+                st.table(_drop_empty_columns(journal_rows[:120]))
             else:
                 st.write("Yol günlüğü satırları henüz oluşmadı.")
 
