@@ -32,6 +32,30 @@ def _warn_once(message: str) -> None:
     st.warning(message)
 
 
+def _get_secret_value(key: str, default: str = "") -> str:
+    """Read credentials from Streamlit secrets first, env second."""
+    try:
+        if key in st.secrets:
+            val = st.secrets[key]
+            if val is not None:
+                return str(val).strip()
+    except Exception:
+        pass
+    return str(os.getenv(key, default)).strip()
+
+
+def _get_streamlit_secret(key: str) -> str:
+    """Read a required secret from Streamlit secrets only."""
+    try:
+        if key in st.secrets:
+            value = st.secrets[key]
+            if value is not None:
+                return str(value).strip()
+    except Exception:
+        pass
+    return ""
+
+
 def _load_json_file(path: Path, *, missing_message: str, parse_error_message: str) -> Any:
     try:
         if not path.is_file():
@@ -489,6 +513,7 @@ def _apply_route_from_api_payload(payload: dict[str, Any], time_mode_api: str) -
     if not isinstance(advisor_segments, list) or not advisor_segments:
         advisor_segments = _build_advisor_segments_from_route_segments(payload.get("segments"))
     st.session_state.route_advisor_segments = advisor_segments or []
+    st.session_state.route_journal_segments = list(st.session_state.route_advisor_segments)
     adv, safe_point_popups, adv_err, adv_json_ok = _fetch_security_advisor(payload, time_mode_api)
     try:
         from backend.ai_advisor import strip_safe_point_json_from_advice_markdown as _strip_adv_json
@@ -499,6 +524,15 @@ def _apply_route_from_api_payload(payload: dict[str, Any], time_mode_api: str) -
     st.session_state.route_advisor_error = adv_err
     st.session_state.route_advisor_json_ok = bool(adv_json_ok) if adv_err is None else True
     st.session_state.route_safe_point_popups = _parse_safe_point_popups(safe_point_popups)
+    segment_advice = _map_popup_advice_to_segments(
+        list(st.session_state.route_journal_segments or []),
+        list(st.session_state.route_safe_point_popups or []),
+    )
+    st.session_state.route_journal_timeline = _timeline_cards_from_route(
+        list(st.session_state.route_journal_segments or []),
+        segment_advice,
+        bucket_m=200.0,
+    )
 
 
 def _advisor_hero_emoji(score: float | None) -> tuple[str, str]:
@@ -622,13 +656,13 @@ def _dynamic_ai_advice(route_payload: dict[str, Any], user_status: str) -> str |
         f"Rota verisi: {json.dumps(route_payload, ensure_ascii=False)[:6000]}"
     )
 
-    gemini_key = (os.getenv("GEMINI_API_KEY") or "").strip()
+    gemini_key = _get_streamlit_secret("GEMINI_API_KEY")
     if gemini_key:
         try:
             import google.generativeai as genai
 
             genai.configure(api_key=gemini_key)
-            model = genai.GenerativeModel(os.getenv("GEMINI_MODEL", "gemini-1.5-flash"))
+            model = genai.GenerativeModel(_get_secret_value("GEMINI_MODEL", "gemini-1.5-flash"))
             rsp = model.generate_content(prompt)
             text = str(getattr(rsp, "text", "") or "").strip()
             if text:
@@ -636,14 +670,14 @@ def _dynamic_ai_advice(route_payload: dict[str, Any], user_status: str) -> str |
         except Exception:
             pass
 
-    openai_key = (os.getenv("OPENAI_API_KEY") or "").strip()
+    openai_key = _get_secret_value("OPENAI_API_KEY")
     if openai_key:
         try:
             from openai import OpenAI
 
             client = OpenAI(api_key=openai_key)
             rsp = client.chat.completions.create(
-                model=os.getenv("OPENAI_MODEL", "gpt-4o-mini"),
+                model=_get_secret_value("OPENAI_MODEL", "gpt-4o-mini"),
                 temperature=0.4,
                 messages=[
                     {"role": "system", "content": "Türkçe, destekleyici, kısa ve somut güvenlik önerileri ver."},
@@ -795,6 +829,10 @@ def _init_route_state() -> None:
         st.session_state.route_safe_point_popups = []
     if "route_advisor_segments" not in st.session_state:
         st.session_state.route_advisor_segments = []
+    if "route_journal_segments" not in st.session_state:
+        st.session_state.route_journal_segments = []
+    if "route_journal_timeline" not in st.session_state:
+        st.session_state.route_journal_timeline = []
 
     # Kullanıcının anlık durumu (AI danışmanı kişiselleştirmek için).
     if "user_status" not in st.session_state:
@@ -1166,16 +1204,21 @@ def main() -> None:
 
     # Yol Günlüğü: mesafe dilimleri (200 m) + AI nokta notları
     if ui_mode == "Güvenli Rota":
-        segments_raw = st.session_state.get("route_advisor_segments") or []
+        segments_raw = st.session_state.get("route_journal_segments") or st.session_state.get("route_advisor_segments") or []
         segments = [s for s in segments_raw if isinstance(s, dict)] if isinstance(segments_raw, list) else []
         if not segments:
             base_segments = st.session_state.get("route_segments")
             segments = _build_advisor_segments_from_route_segments(base_segments)
+            st.session_state.route_journal_segments = list(segments)
         safe_points = _parse_safe_point_popups(st.session_state.get("route_safe_point_popups"))
 
         if segments:
             segment_advice = _map_popup_advice_to_segments(segments, safe_points)
             timeline = _timeline_cards_from_route(segments, segment_advice, bucket_m=200.0)
+            if not timeline:
+                timeline = list(st.session_state.get("route_journal_timeline") or [])
+            else:
+                st.session_state.route_journal_timeline = list(timeline)
 
             st.subheader("Yol Günlüğü")
             st.caption("Rotayı **200 m** mesafe aralıklarına böldüm; her kartta o bölgeye düşen rehber notu var.")
