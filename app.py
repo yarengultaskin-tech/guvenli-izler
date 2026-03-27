@@ -1437,6 +1437,16 @@ def main() -> None:
             st.sidebar.success("Gece Güvenlik Analizi Uygulandı")
         if (score < 50.0) or (unknown_ratio is not None and unknown_ratio > 0.30):
             st.sidebar.warning("⚠ Not: Bu rotanın bazı kısımlarında aydınlatma verisi eksik olabilir.")
+
+    st.sidebar.markdown("---")
+    st.sidebar.error("🚨 ACİL YARDIM ARAÇLARI")
+    st.sidebar.markdown("[📞 112 Acil Çağrı Merkezi'ni Ara](tel:112)")
+    st.sidebar.markdown("**KADES Uygulamasını Aç/İndir:**")
+    col1, col2 = st.sidebar.columns(2)
+    col1.markdown("[🍎 iOS (App Store)](https://apps.apple.com/tr/app/kades/id1360155104)")
+    col2.markdown("[🤖 Android (Google Play)](https://play.google.com/store/apps/details?id=tr.gov.egm.kades)")
+    st.sidebar.caption("Lütfen sadece gerçek acil durumlarda kullanınız.")
+
     @st.cache_resource
     def _base_map_template() -> Any:
         # Cache a template (tiles + bbox rectangle). We'll deep-copy per rerun.
