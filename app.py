@@ -132,6 +132,11 @@ def _geojson_points_to_rows(
                 lon = float(raw_lon)
             except (TypeError, ValueError):
                 continue
+        # EPSG:4326 güvenliği: bazı kaynaklarda lat/lon ters gelebilir, makul aralıkta otomatik düzelt.
+        if abs(lat) > 90.0 and abs(lon) <= 90.0:
+            lat, lon = lon, lat
+        if abs(lat) > 90.0 or abs(lon) > 180.0:
+            continue
         if not _bbox_contains(lat=lat, lon=lon, bbox=bbox):
             continue
         rows.append(
@@ -519,6 +524,7 @@ def fetch_osm_layer(
     max_points = 350
     payload = None
     tried_paths: list[str] = []
+    debug_details: list[str] = []
     for file_path in _data_file_candidates(f"{layer_name}.geojson"):
         tried_paths.append(file_path.as_posix())
         payload = _load_json_file(
@@ -527,11 +533,35 @@ def fetch_osm_layer(
             parse_error_message=f"{layer_name} katmanı okunamadı",
         )
         if payload is not None:
+            debug_details.append(f"{layer_name}: yüklendi -> {file_path.as_posix()}")
             break
     if payload is None:
+        st.error(f"{layer_name} katmanı için dosya bulunamadı. Aranan yollar: " + ", ".join(tried_paths))
         _warn_once(f"{layer_name} katmanı için denenen yollar: " + ", ".join(tried_paths))
         return []
     rows = _geojson_points_to_rows(payload, layer_name=layer_name, bbox=bbox)
+    if layer_name == "transit" and not rows:
+        # Transit boşsa metro_stations dosyasından metro noktalarını geri kazan.
+        for file_path in _data_file_candidates("metro_stations.geojson"):
+            payload2 = _load_json_file(
+                file_path,
+                missing_message=f"Veri dosyası bulunamadı: {file_path.as_posix()}",
+                parse_error_message="metro_stations katmanı okunamadı",
+            )
+            if payload2 is None:
+                continue
+            fallback_rows = _geojson_points_to_rows(payload2, layer_name=layer_name, bbox=bbox)
+            for r in fallback_rows:
+                r["transit_type"] = r.get("transit_type") or "metro"
+            if fallback_rows:
+                rows = fallback_rows
+                debug_details.append(f"transit fallback: metro_stations -> {file_path.as_posix()}")
+                break
+    try:
+        if debug_details:
+            st.sidebar.write(" | ".join(debug_details))
+    except Exception:
+        pass
     if len(rows) > max_points:
         return rows[:max_points]
     return rows
@@ -1035,24 +1065,28 @@ def main() -> None:
                     bbox=bbox,
                     refresh=refresh_layers,
                 )
+                st.sidebar.write(f"Katman police_stations yüklendi, nokta sayısı: {len(extra_layers['police_stations'])}")
             if show_lamps:
                 extra_layers["street_lamps"] = fetch_osm_layer(
                     layer_name="street_lamps",
                     bbox=bbox,
                     refresh=refresh_layers,
                 )
+                st.sidebar.write(f"Katman street_lamps yüklendi, nokta sayısı: {len(extra_layers['street_lamps'])}")
             if show_parks:
                 extra_layers["parks"] = fetch_osm_layer(
                     layer_name="parks",
                     bbox=bbox,
                     refresh=refresh_layers,
                 )
+                st.sidebar.write(f"Katman parks yüklendi, nokta sayısı: {len(extra_layers['parks'])}")
             if show_transit:
                 extra_layers["transit"] = fetch_osm_layer(
                     layer_name="transit",
                     bbox=bbox,
                     refresh=refresh_layers,
                 )
+                st.sidebar.write(f"Katman transit yüklendi, nokta sayısı: {len(extra_layers['transit'])}")
     else:
         st.sidebar.subheader("Güvenli rota (A -> B)")
         st.sidebar.caption("Günün saatine göre rota, mesafe ile güvenlik arasında otomatik denge kurar.")
