@@ -1,0 +1,5 @@
+{
+  "advice": "Bu proje dosya tabanli modda calisiyor. Ayrintili kisisel notlar icin `data/advisor.json` dosyasini kendi verinle guncelleyebilirsin.",
+  "safe_point_popups": [],
+  "advisor_json_ok": true
+}

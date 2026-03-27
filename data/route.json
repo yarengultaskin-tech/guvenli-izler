@@ -1,0 +1,22 @@
+{
+  "polyline": [
+    {
+      "lat": 39.917,
+      "lon": 32.863
+    },
+    {
+      "lat": 39.922,
+      "lon": 32.872
+    }
+  ],
+  "safety_score": 68,
+  "unknown_ratio": 0.1,
+  "label": "Orta Güvenli Rota",
+  "segments": [],
+  "nearby_stations": [],
+  "segment_score_min": 60,
+  "segment_score_max": 74,
+  "advisor_segments": [],
+  "time_mode": "day",
+  "night_analysis": false
+}
