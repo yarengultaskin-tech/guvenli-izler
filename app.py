@@ -45,6 +45,29 @@ def _data_file_candidates(filename: str) -> list[Path]:
     return out
 
 
+@st.cache_data(show_spinner=False, ttl=3600)
+def _geocode_place_name(query: str) -> tuple[float, float, str] | None:
+    """Yer adını koordinata çevir (Nominatim/geopy)."""
+    q = str(query or "").strip()
+    if not q:
+        return None
+    try:
+        from geopy.geocoders import Nominatim
+    except Exception:
+        return None
+
+    try:
+        geo = Nominatim(user_agent="guvenli_izler_app")
+        # Türkiye/Ankara bağlamı verip eşleşme kalitesini artır.
+        ask = q if "ankara" in q.lower() else f"{q}, Ankara, Türkiye"
+        loc = geo.geocode(ask, timeout=8)
+        if not loc:
+            return None
+        return float(loc.latitude), float(loc.longitude), str(getattr(loc, "address", q))
+    except Exception:
+        return None
+
+
 def _load_open_places_for_bbox(bbox: dict[str, float]) -> list[dict[str, Any]]:
     """Yol Günlüğü için açık eczane/restoran vb. noktaları yükle."""
     payload: Any = None
@@ -1165,6 +1188,10 @@ def _init_route_state() -> None:
         st.session_state.route_journal_rows = []
     if "route_open_places" not in st.session_state:
         st.session_state.route_open_places = []
+    if "_last_geocode_start_query" not in st.session_state:
+        st.session_state._last_geocode_start_query = ""
+    if "_last_geocode_end_query" not in st.session_state:
+        st.session_state._last_geocode_end_query = ""
 
     # Kullanıcının anlık durumu (AI danışmanı kişiselleştirmek için).
     if "user_status" not in st.session_state:
@@ -1291,6 +1318,44 @@ def main() -> None:
         )
         st.session_state.user_status = _normalize_user_status(status_pick)
         st.sidebar.caption("Seçimine göre kız kardeşin rotayı senin için özel olarak yorumlayacak 💜")
+
+        st.sidebar.markdown("### Konum Ara")
+        start_query = st.sidebar.text_input(
+            "Başlangıç Noktası Ara",
+            placeholder="Örn: Ankara Garı",
+            key="route_start_query",
+        )
+        end_query = st.sidebar.text_input(
+            "Varış Noktası Ara",
+            placeholder="Örn: Kızılay Metro",
+            key="route_end_query",
+        )
+
+        geocode_changed = False
+        sq = str(start_query or "").strip()
+        eq = str(end_query or "").strip()
+        if sq and sq != str(st.session_state.get("_last_geocode_start_query") or ""):
+            found = _geocode_place_name(sq)
+            st.session_state._last_geocode_start_query = sq
+            if found:
+                lat, lon, addr = found
+                st.session_state.start_point = {"lat": lat, "lon": lon}
+                st.sidebar.success(f"Başlangıç bulundu: {addr}")
+                geocode_changed = True
+            else:
+                st.sidebar.warning("Başlangıç noktası bulunamadı canım, farklı bir isimle tekrar dener misin?")
+        if eq and eq != str(st.session_state.get("_last_geocode_end_query") or ""):
+            found = _geocode_place_name(eq)
+            st.session_state._last_geocode_end_query = eq
+            if found:
+                lat, lon, addr = found
+                st.session_state.end_point = {"lat": lat, "lon": lon}
+                st.sidebar.success(f"Varış bulundu: {addr}")
+                geocode_changed = True
+            else:
+                st.sidebar.warning("Varış noktası bulunamadı tatlım, biraz daha net bir yer adı yazalım.")
+        if geocode_changed:
+            st.rerun()
 
         if (
             st.session_state.get("route_polyline")
