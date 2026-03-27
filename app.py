@@ -57,9 +57,10 @@ def _geocode_place_name(query: str) -> tuple[float, float, str] | None:
         return None
 
     try:
-        geo = Nominatim(user_agent="guvenli_izler_app")
-        # Türkiye/Ankara bağlamı verip eşleşme kalitesini artır.
-        ask = q if "ankara" in q.lower() else f"{q}, Ankara, Türkiye"
+        geo = Nominatim(user_agent="guvenli_izler_v1")
+        # Ankara bağlamı: sorgunun sonuna ", Ankara" eklenir (tekrar eklenmez).
+        q_lower = q.lower().rstrip()
+        ask = q if q_lower.endswith(", ankara") else f"{q}, Ankara"
         loc = geo.geocode(ask, timeout=8)
         if not loc:
             return None
@@ -1371,6 +1372,9 @@ def main() -> None:
                 geocode_changed = True
             else:
                 st.sidebar.warning("Başlangıç noktası bulunamadı canım, farklı bir isimle tekrar dener misin?")
+                st.sidebar.caption(
+                    "İpucu: Yer adını daha tam yazmayı deneyin (Örn: Kızılay Alışveriş Merkezi)"
+                )
         if eq and eq != str(st.session_state.get("_last_geocode_end_query") or ""):
             found = _geocode_place_name(eq)
             st.session_state._last_geocode_end_query = eq
@@ -1381,6 +1385,9 @@ def main() -> None:
                 geocode_changed = True
             else:
                 st.sidebar.warning("Varış noktası bulunamadı tatlım, biraz daha net bir yer adı yazalım.")
+                st.sidebar.caption(
+                    "İpucu: Yer adını daha tam yazmayı deneyin (Örn: Kızılay Alışveriş Merkezi)"
+                )
         if geocode_changed:
             st.rerun()
 
