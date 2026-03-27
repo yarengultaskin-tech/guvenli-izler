@@ -33,6 +33,18 @@ def _warn_once(message: str) -> None:
     st.warning(message)
 
 
+def _data_file_candidates(filename: str) -> list[Path]:
+    """Bulut/yerel çalışma dizin farklarında data dosyasını güvenli bul."""
+    cwd_data = Path(os.path.join(os.getcwd(), "data", filename))
+    app_data = Path(__file__).resolve().parent / "data" / filename
+    configured = DATA_DIR / filename
+    out: list[Path] = []
+    for p in (configured, cwd_data, app_data):
+        if p not in out:
+            out.append(p)
+    return out
+
+
 def _get_secret_value(key: str, default: str = "") -> str:
     """Read credentials from Streamlit secrets first, env second."""
     try:
@@ -269,6 +281,67 @@ def _timeline_cards_from_route(
     return ordered
 
 
+def _build_route_journal_rows(
+    segments: list[dict[str, Any]],
+    safe_points: list[dict[str, Any]],
+    segment_advice: dict[int, list[str]],
+) -> list[dict[str, Any]]:
+    """Yol Günlüğü için tablo satırları: segment puanı + en yakın mesafeler + popup tavsiyesi."""
+    rows: list[dict[str, Any]] = []
+    for i, seg in enumerate(segments):
+        if not isinstance(seg, dict):
+            continue
+        mid_m = _advisor_segment_mid_m(seg, i)
+        try:
+            score = float(seg.get("safety_score")) if seg.get("safety_score") is not None else None
+        except (TypeError, ValueError):
+            score = None
+        row: dict[str, Any] = {
+            "segment": i + 1,
+            "rota_metre": int(round(mid_m)),
+            "segment_puani": int(round(score)) if score is not None else None,
+            "karakol_m": seg.get("nearest_police_dist"),
+            "metro_m": seg.get("nearest_metro_dist"),
+            "eczane_m": seg.get("nearest_pharmacy_dist"),
+            "taksi_m": seg.get("nearest_taxi_dist"),
+        }
+        if isinstance(seg.get("lighting"), dict):
+            row["lamba_m"] = seg.get("lighting", {}).get("nearest_lamp_distance_m")
+        adv_lines = segment_advice.get(i) or []
+        if adv_lines:
+            row["popup_notu"] = " | ".join(adv_lines[:2])
+        rows.append(row)
+
+    # Popup'ta görülen ama segmente düşmeyen notları da kaybetmeyelim.
+    for sp in safe_points:
+        if not isinstance(sp, dict):
+            continue
+        adv = str(sp.get("popup_advice") or "").strip()
+        if not adv:
+            continue
+        try:
+            lat = float(sp.get("lat"))
+            lon = float(sp.get("lon"))
+        except (TypeError, ValueError):
+            lat = lon = None  # type: ignore[assignment]
+        rows.append(
+            {
+                "segment": "-",
+                "rota_metre": None,
+                "segment_puani": None,
+                "karakol_m": None,
+                "metro_m": None,
+                "eczane_m": None,
+                "taksi_m": None,
+                "lamba_m": None,
+                "popup_notu": adv,
+                "popup_nokta": str(sp.get("name") or sp.get("type") or "Güvenli nokta"),
+                "popup_koordinat": f"{lat:.5f}, {lon:.5f}" if lat is not None and lon is not None else "",
+            }
+        )
+    return rows
+
+
 def _bucket_poi_summary(segment_indices: list[int], segments: list[dict[str, Any]]) -> str:
     """Kart altına kısa güvenli nokta / lamba özeti."""
     bits: list[str] = []
@@ -396,7 +469,7 @@ def fetch_traces(
     bbox: dict[str, float],
     tag_filter: Optional[str],
 ) -> list[dict[str, Any]]:
-    candidates = [DATA_DIR / "traces.geojson", DATA_DIR / "traces.json"]
+    candidates = _data_file_candidates("traces.geojson") + _data_file_candidates("traces.json")
     payload: Any = None
     for path in candidates:
         payload = _load_json_file(
@@ -444,13 +517,19 @@ def fetch_osm_layer(
 ) -> list[dict[str, Any]]:
     _ = refresh  # dosya tabanlı modda manuel yenileme yok
     max_points = 350
-    file_path = DATA_DIR / f"{layer_name}.geojson"
-    payload = _load_json_file(
-        file_path,
-        missing_message=f"Veri dosyası bulunamadı: {file_path.as_posix()}",
-        parse_error_message=f"{layer_name} katmanı okunamadı",
-    )
+    payload = None
+    tried_paths: list[str] = []
+    for file_path in _data_file_candidates(f"{layer_name}.geojson"):
+        tried_paths.append(file_path.as_posix())
+        payload = _load_json_file(
+            file_path,
+            missing_message=f"Veri dosyası bulunamadı: {file_path.as_posix()}",
+            parse_error_message=f"{layer_name} katmanı okunamadı",
+        )
+        if payload is not None:
+            break
     if payload is None:
+        _warn_once(f"{layer_name} katmanı için denenen yollar: " + ", ".join(tried_paths))
         return []
     rows = _geojson_points_to_rows(payload, layer_name=layer_name, bbox=bbox)
     if len(rows) > max_points:
@@ -575,6 +654,11 @@ def _apply_route_from_api_payload(payload: dict[str, Any], time_mode_api: str) -
         list(st.session_state.route_journal_segments or []),
         segment_advice,
         bucket_m=200.0,
+    )
+    st.session_state.route_journal_rows = _build_route_journal_rows(
+        list(st.session_state.route_journal_segments or []),
+        list(st.session_state.route_safe_point_popups or []),
+        segment_advice,
     )
 
 
@@ -882,6 +966,8 @@ def _init_route_state() -> None:
         st.session_state.route_journal_segments = []
     if "route_journal_timeline" not in st.session_state:
         st.session_state.route_journal_timeline = []
+    if "route_journal_rows" not in st.session_state:
+        st.session_state.route_journal_rows = []
 
     # Kullanıcının anlık durumu (AI danışmanı kişiselleştirmek için).
     if "user_status" not in st.session_state:
@@ -939,7 +1025,7 @@ def main() -> None:
         show_police = st.sidebar.checkbox("Karakollar (police stations)", value=True)
         show_lamps = st.sidebar.checkbox("Aydınlatma direkleri (street_lamps)", value=False)
         show_parks = st.sidebar.checkbox("Parklar (parks)", value=True)
-        show_transit = st.sidebar.checkbox("Metro + Otobüs durakları (transit)", value=False)
+        show_transit = st.sidebar.checkbox("Metro + Otobüs durakları (transit)", value=True)
         refresh_layers = st.sidebar.checkbox("Katmanları Overpass'tan yenile", value=False)
 
         with st.spinner("Harita katmanları yükleniyor…"):
@@ -1268,9 +1354,18 @@ def main() -> None:
                 timeline = list(st.session_state.get("route_journal_timeline") or [])
             else:
                 st.session_state.route_journal_timeline = list(timeline)
+            journal_rows = _build_route_journal_rows(segments, safe_points, segment_advice)
+            if journal_rows:
+                st.session_state.route_journal_rows = list(journal_rows)
+            else:
+                journal_rows = list(st.session_state.get("route_journal_rows") or [])
 
             st.subheader("Yol Günlüğü")
             st.caption("Rotayı **200 m** mesafe aralıklarına böldüm; her kartta o bölgeye düşen rehber notu var.")
+            if journal_rows:
+                st.table(journal_rows[:120])
+            else:
+                st.write("Yol günlüğü satırları henüz oluşmadı.")
 
             use_expanders = len(timeline) > 8
             for card_i, card in enumerate(timeline):
