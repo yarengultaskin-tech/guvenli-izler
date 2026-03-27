@@ -1,4 +1,53 @@
 {
   "type": "FeatureCollection",
-  "features": []
+  "features": [
+    {
+      "type": "Feature",
+      "properties": {
+        "id": "tr-1",
+        "name": "Kizilay Metro",
+        "transit_type": "metro"
+      },
+      "geometry": {
+        "type": "Point",
+        "coordinates": [32.8537, 39.9209]
+      }
+    },
+    {
+      "type": "Feature",
+      "properties": {
+        "id": "tr-2",
+        "name": "Necatibey Metro",
+        "transit_type": "metro"
+      },
+      "geometry": {
+        "type": "Point",
+        "coordinates": [32.8457, 39.9221]
+      }
+    },
+    {
+      "type": "Feature",
+      "properties": {
+        "id": "tr-3",
+        "name": "Tunalı Hilmi Otobus Duragi",
+        "transit_type": "bus"
+      },
+      "geometry": {
+        "type": "Point",
+        "coordinates": [32.8619, 39.9072]
+      }
+    },
+    {
+      "type": "Feature",
+      "properties": {
+        "id": "tr-4",
+        "name": "Kolej Metro",
+        "transit_type": "metro"
+      },
+      "geometry": {
+        "type": "Point",
+        "coordinates": [32.8624, 39.9258]
+      }
+    }
+  ]
 }

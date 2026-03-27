@@ -1,4 +1,38 @@
 {
   "type": "FeatureCollection",
-  "features": []
+  "features": [
+    {
+      "type": "Feature",
+      "properties": {
+        "id": "metro-1",
+        "name": "Kizilay Metro"
+      },
+      "geometry": {
+        "type": "Point",
+        "coordinates": [32.8537, 39.9209]
+      }
+    },
+    {
+      "type": "Feature",
+      "properties": {
+        "id": "metro-2",
+        "name": "Necatibey Metro"
+      },
+      "geometry": {
+        "type": "Point",
+        "coordinates": [32.8457, 39.9221]
+      }
+    },
+    {
+      "type": "Feature",
+      "properties": {
+        "id": "metro-3",
+        "name": "Kolej Metro"
+      },
+      "geometry": {
+        "type": "Point",
+        "coordinates": [32.8624, 39.9258]
+      }
+    }
+  ]
 }

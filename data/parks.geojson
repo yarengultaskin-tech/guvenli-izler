@@ -1,4 +1,38 @@
 {
   "type": "FeatureCollection",
-  "features": []
+  "features": [
+    {
+      "type": "Feature",
+      "properties": {
+        "id": "park-1",
+        "name": "Kugulu Park"
+      },
+      "geometry": {
+        "type": "Point",
+        "coordinates": [32.8626, 39.9057]
+      }
+    },
+    {
+      "type": "Feature",
+      "properties": {
+        "id": "park-2",
+        "name": "Sehit Cuma Dag Tabiat Parki"
+      },
+      "geometry": {
+        "type": "Point",
+        "coordinates": [32.8754, 39.8979]
+      }
+    },
+    {
+      "type": "Feature",
+      "properties": {
+        "id": "park-3",
+        "name": "Genclik Parki Cevresi"
+      },
+      "geometry": {
+        "type": "Point",
+        "coordinates": [32.8548, 39.9389]
+      }
+    }
+  ]
 }

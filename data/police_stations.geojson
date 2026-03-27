@@ -1,4 +1,38 @@
 {
   "type": "FeatureCollection",
-  "features": []
+  "features": [
+    {
+      "type": "Feature",
+      "properties": {
+        "id": "pol-1",
+        "name": "Kizilay Polis Merkezi"
+      },
+      "geometry": {
+        "type": "Point",
+        "coordinates": [32.8541, 39.9208]
+      }
+    },
+    {
+      "type": "Feature",
+      "properties": {
+        "id": "pol-2",
+        "name": "Bahcelievler Polis Merkezi"
+      },
+      "geometry": {
+        "type": "Point",
+        "coordinates": [32.8369, 39.9253]
+      }
+    },
+    {
+      "type": "Feature",
+      "properties": {
+        "id": "pol-3",
+        "name": "Cankaya Ilce Emniyet Noktasi"
+      },
+      "geometry": {
+        "type": "Point",
+        "coordinates": [32.8668, 39.9062]
+      }
+    }
+  ]
 }
