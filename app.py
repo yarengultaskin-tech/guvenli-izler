@@ -1207,6 +1207,15 @@ def main() -> None:
     with c3:
         st.write("🛡️ Güven Skoru")
 
+    st.sidebar.markdown("# 🌟 Misyonumuz")
+    st.sidebar.markdown(
+        "Türkiye'de kadınların %35,9'u yaşadığı çevrede gece yalnız yürürken güvensizlik hissediyor. "
+        "Güvenli İzler, bu eşitsizliği veri ve dayanışmayla görünür kılmak için tasarlandı."
+    )
+    st.sidebar.markdown("### Hedef:")
+    st.sidebar.markdown("Her sokağın her saatte eşit erişilebilir olması.")
+    st.sidebar.caption("(TÜİK, 2024)")
+
     ui_mode = st.sidebar.selectbox(
         "Mod",
         ["Katman Görüntüleme", "Güvenli Rota"],
