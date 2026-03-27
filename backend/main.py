@@ -4,13 +4,18 @@ from pathlib import Path
 from typing import Any, Optional
 
 try:
+    import streamlit as st
+except Exception:  # pragma: no cover
+    st = None  # type: ignore[assignment]
+
+try:
     from dotenv import load_dotenv
 except ImportError:  # pragma: no cover
     def load_dotenv(*args: Any, **kwargs: Any) -> bool:  # type: ignore[misc,no-redef]
         return False
 
 
-# Proje kökü .env + isteğe bağlı cwd — GEMINI_API_KEY burada yüklenir
+# Proje kökü .env + isteğe bağlı cwd
 _PROJECT_ROOT = Path(__file__).resolve().parent.parent
 load_dotenv(_PROJECT_ROOT / ".env", override=True)
 load_dotenv()
@@ -57,8 +62,14 @@ app.add_middleware(
 
 
 def _configure_gemini_client_from_env() -> None:
-    """Gemini istemcisini .env yüklendikten sonra bir kez yapılandır."""
-    key = (os.getenv("GEMINI_API_KEY") or "").strip().lstrip("\ufeff").strip('"').strip("'")
+    """Gemini istemcisini Streamlit secrets'tan yapılandır."""
+    key = ""
+    try:
+        if st is not None and "GEMINI_API_KEY" in st.secrets:
+            key = str(st.secrets["GEMINI_API_KEY"]).strip()
+    except Exception:
+        key = ""
+    key = key.lstrip("\ufeff").strip('"').strip("'")
     if not key:
         return
     try:

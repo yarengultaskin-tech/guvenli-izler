@@ -9,6 +9,11 @@ import json
 from pathlib import Path
 from typing import Any
 
+try:
+    import streamlit as st
+except Exception:  # pragma: no cover
+    st = None  # type: ignore[assignment]
+
 
 def strip_safe_point_json_from_advice_markdown(text: str) -> str:
     """
@@ -172,6 +177,18 @@ def _ensure_dotenv() -> None:
             load_dotenv(p, override=True)
             return
     load_dotenv(override=True)
+
+
+def _get_secret_value(key: str, default: str = "") -> str:
+    """Read from Streamlit secrets first, then environment."""
+    try:
+        if st is not None and key in st.secrets:
+            value = st.secrets[key]
+            if value is not None:
+                return str(value).strip()
+    except Exception:
+        pass
+    return str(os.getenv(key, default)).strip()
 
 
 def _first_section_heading_line(score: float) -> str:
@@ -474,13 +491,17 @@ def generate_security_advice(context: dict[str, Any]) -> tuple[str, list[dict[st
     """
     Gemini SDK ile danışman yanıtı üretir.
 
-    GEMINI_API_KEY ortam değişkeni zorunludur. İsteğe bağlı: GEMINI_MODEL, GEMINI_MAX_OUTPUT_TOKENS.
+    GEMINI_API_KEY st.secrets içinde zorunludur. İsteğe bağlı: GEMINI_MODEL, GEMINI_MAX_OUTPUT_TOKENS.
     Dönüş: (advice_metni, safe_point_popups, json_ve_harita_verisi_tam_mı).
     """
     _ensure_dotenv()
-    api_key = (os.getenv("GEMINI_API_KEY") or "").strip().lstrip("\ufeff").strip('"').strip("'")
+    try:
+        api_key = str(st.secrets["GEMINI_API_KEY"]).strip() if st is not None else ""
+    except Exception:
+        api_key = ""
+    api_key = api_key.lstrip("\ufeff").strip('"').strip("'")
     if not api_key:
-        raise ValueError("GEMINI_API_KEY tanımlı değil. Proje kökünde .env dosyasına ekleyin.")
+        raise ValueError("GEMINI_API_KEY tanımlı değil. `.streamlit/secrets.toml` veya Streamlit Cloud secrets bölümünü kontrol edin.")
 
     try:
         import google.generativeai as genai

@@ -74,11 +74,11 @@ source venv/bin/activate
 pip install -r requirements.txt
 ```
 
-### 4. Ortam Değişkenlerini Ayarlayın
+### 4. Streamlit Secrets Ayarlayın
 
-Proje kök dizininde `.env` dosyası oluşturun:
-```env
-GEMINI_API_KEY=buraya_kendi_anahtarinizi_yazin
+Proje kök dizininde `.streamlit/secrets.toml` dosyası oluşturun:
+```toml
+GEMINI_API_KEY="buraya_kendi_anahtarinizi_yazin"
 ```
 
 > 🔑 Google Gemini API anahtarı almak için [Google AI Studio](https://aistudio.google.com/) adresini ziyaret edin.

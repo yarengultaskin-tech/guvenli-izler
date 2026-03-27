@@ -4,6 +4,7 @@ osmnx_cache/
 
 # Şifreler ve Gizli Dosyalar
 .env
+.streamlit/secrets.toml
 
 # Gereksiz sistem dosyaları
 venv/
