@@ -579,7 +579,6 @@ except Exception:
 
 def fetch_traces(
     bbox: dict[str, float],
-    tag_filter: Optional[str],
 ) -> list[dict[str, Any]]:
     candidates = _data_file_candidates("traces.geojson") + _data_file_candidates("traces.json")
     payload: Any = None
@@ -609,8 +608,6 @@ def fetch_traces(
         if not _bbox_contains(lat=lat, lon=lon, bbox=bbox):
             continue
         tag = str(row.get("tag_type") or "")
-        if tag_filter and tag_filter != "Tümü" and tag != tag_filter:
-            continue
         out.append({"latitude": lat, "longitude": lon, "tag_type": tag, "id": row.get("id")})
     return out
 
@@ -1211,15 +1208,14 @@ def main() -> None:
     bbox = default_bbox()
 
     # --- Sidebar controls depend on mode ---
-    tag_filter: Optional[str] = None
     extra_layers: dict[str, list[dict[str, Any]]] = {}
     route_time_mode_api: str = "day"
     basemap_for_route: str = "light"
 
     if ui_mode == "Katman Görüntüleme":
         st.sidebar.subheader("Topluluk izleri")
-        tag_options = ["Tümü", "Güvenli", "Az Işıklı", "Issız"]
-        tag_filter = st.sidebar.selectbox("Haritada göster", tag_options, index=0)
+        tag_options = ["Tümü"]
+        st.sidebar.selectbox("Haritada göster", tag_options, index=0)
 
         st.sidebar.subheader("OSM katmanları")
         show_police = st.sidebar.checkbox("Karakollar (police stations)", value=True)
@@ -1365,7 +1361,7 @@ def main() -> None:
     # Performance: only fetch traces when user is viewing layers.
     traces: list[dict[str, Any]] = []
     if ui_mode == "Katman Görüntüleme":
-        traces = fetch_traces(bbox, tag_filter if tag_filter and tag_filter != "Tümü" else None)
+        traces = fetch_traces(bbox)
 
     route_polyline_for_map = st.session_state.route_polyline if ui_mode == "Güvenli Rota" else None
     score = None
