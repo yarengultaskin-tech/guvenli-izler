@@ -57,6 +57,18 @@ def _get_secret_value(key: str, default: str = "") -> str:
     return str(os.getenv(key, default)).strip()
 
 
+def _normalize_user_status(raw: Any) -> str:
+    """Sidebar seçiminden tek bir kullanıcı durumu üret."""
+    allowed = {"🫂 Yalnızım", "🍼 Bebek Arabam/Bavulum Var", "🏃‍♀️ Acelem Var"}
+    if isinstance(raw, str) and raw in allowed:
+        return raw
+    if isinstance(raw, (list, tuple, set)):
+        for item in raw:
+            if isinstance(item, str) and item in allowed:
+                return item
+    return "🫂 Yalnızım"
+
+
 def _get_streamlit_secret(key: str) -> str:
     """Read a required secret from Streamlit secrets only."""
     try:
@@ -855,11 +867,29 @@ def _heuristic_advice_text(route_payload: dict[str, Any], user_status: str) -> s
 
 
 def _dynamic_ai_advice(route_payload: dict[str, Any], user_status: str) -> str | None:
+    status = _normalize_user_status(user_status)
+    if status.startswith("🍼"):
+        status_rule = (
+            "Kullanıcı bebek arabası/bavul ile yürüyor: kaldırım genişliği, ışıklı ana cadde ve ani yön değişiminden kaçınma "
+            "önerileri ver; hız değil güvenli akış öncelikli olsun."
+        )
+    elif status.startswith("🏃"):
+        status_rule = (
+            "Kullanıcı acele ediyor: kısa ve uygulanabilir öneriler ver; riskli bölümü hızlı geçme, ana aksı takip etme ve "
+            "yakın güvenli noktayı ara durak olarak kullanma önerisi ekle."
+        )
+    else:
+        status_rule = (
+            "Kullanıcı yalnız yürüyor: çevre farkındalığı, telefon/çanta kontrolü ve kalabalık-aydınlık hatta yakın kalma "
+            "önerilerini somut metre referanslarıyla ver."
+        )
+
     prompt = (
         "Sen Güvenli İzler uygulamasında büyük kız kardeş gibi konuşan AI refakatçisin.\n"
         "4 bölümde yaz: genel durum, rota boyunca ne beklenir, pratik tavsiye, kapanış.\n"
         "Teknik jargon kullanma; somut metre ve yakın güvenli nokta referansı ver.\n"
-        f"Kullanıcı durumu: {user_status}\n"
+        f"Kullanıcı durumu: {status}\n"
+        f"Duruma özel kural: {status_rule}\n"
         f"Rota verisi: {json.dumps(route_payload, ensure_ascii=False)[:6000]}"
     )
 
@@ -911,7 +941,7 @@ def _fetch_security_advisor(
     total, unk_c, low_c = _route_segment_light_stats(segments)
     _ = total, unk_c, low_c
 
-    user_status = st.session_state.get("user_status") or "🫂 Yalnızım"
+    user_status = _normalize_user_status(st.session_state.get("user_status"))
     dynamic_text = _dynamic_ai_advice(route_payload, str(user_status))
     if dynamic_text:
         return dynamic_text, [], None, True
@@ -1154,12 +1184,13 @@ def main() -> None:
 
         st.sidebar.subheader("O Anki Durumum")
         status_options = ["🫂 Yalnızım", "🍼 Bebek Arabam/Bavulum Var", "🏃‍♀️ Acelem Var"]
-        default_status = st.session_state.get("user_status") if st.session_state.get("user_status") in status_options else status_options[0]
-        st.session_state.user_status = st.sidebar.pills(
+        default_status = _normalize_user_status(st.session_state.get("user_status"))
+        status_pick = st.sidebar.pills(
             "Durum seç",
             options=status_options,
             default=default_status,
         )
+        st.session_state.user_status = _normalize_user_status(status_pick)
         st.sidebar.caption("Seçimine göre kız kardeşin rotayı senin için özel olarak yorumlayacak 💜")
 
         if (
