@@ -1,0 +1,14 @@
+[
+  {"name": "Kizilay Nobetci Eczane", "type": "Eczane", "lat": 39.9207, "lon": 32.8539, "is_open": true},
+  {"name": "Kolej Nobetci Eczane", "type": "Eczane", "lat": 39.9260, "lon": 32.8625, "is_open": true},
+  {"name": "Bahcelievler Gece Eczanesi", "type": "Eczane", "lat": 39.9249, "lon": 32.8345, "is_open": true},
+  {"name": "Ayranci 24 Saat Eczane", "type": "Eczane", "lat": 39.9106, "lon": 32.8552, "is_open": true},
+  {"name": "Kizilay Corbaci", "type": "Restoran", "lat": 39.9213, "lon": 32.8528, "is_open": true},
+  {"name": "Tunali Gece Doner", "type": "Restoran", "lat": 39.9071, "lon": 32.8621, "is_open": true},
+  {"name": "Ayranci 24 Saat Kafe", "type": "Kafe", "lat": 39.9101, "lon": 32.8560, "is_open": true},
+  {"name": "Balgat Acik Lokanta", "type": "Restoran", "lat": 39.9119, "lon": 32.8298, "is_open": true},
+  {"name": "Sogutozu Fast Food", "type": "Restoran", "lat": 39.9139, "lon": 32.8137, "is_open": true},
+  {"name": "Dikmen Gece Market", "type": "Market", "lat": 39.8899, "lon": 32.8585, "is_open": true},
+  {"name": "Kavaklidere Nobetci Eczane", "type": "Eczane", "lat": 39.9091, "lon": 32.8582, "is_open": true},
+  {"name": "Gaziosmanpasa Gece Kafe", "type": "Kafe", "lat": 39.9080, "lon": 32.8720, "is_open": true}
+]

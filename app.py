@@ -45,6 +45,45 @@ def _data_file_candidates(filename: str) -> list[Path]:
     return out
 
 
+def _load_open_places_for_bbox(bbox: dict[str, float]) -> list[dict[str, Any]]:
+    """Yol Günlüğü için açık eczane/restoran vb. noktaları yükle."""
+    payload: Any = None
+    for path in _data_file_candidates("open_places.json"):
+        payload = _load_json_file(
+            path,
+            missing_message=f"Veri dosyası bulunamadı: {path.as_posix()}",
+            parse_error_message="Açık nokta verisi okunamadı",
+        )
+        if payload is not None:
+            break
+    if not isinstance(payload, list):
+        return []
+
+    rows: list[dict[str, Any]] = []
+    for it in payload:
+        if not isinstance(it, dict):
+            continue
+        try:
+            lat = float(it.get("lat"))
+            lon = float(it.get("lon"))
+        except (TypeError, ValueError):
+            continue
+        if not _bbox_contains(lat=lat, lon=lon, bbox=bbox):
+            continue
+        is_open = bool(it.get("is_open", False))
+        if not is_open:
+            continue
+        rows.append(
+            {
+                "name": str(it.get("name") or "Açık nokta"),
+                "type": str(it.get("type") or "Nokta"),
+                "lat": lat,
+                "lon": lon,
+            }
+        )
+    return rows
+
+
 def _get_secret_value(key: str, default: str = "") -> str:
     """Read credentials from Streamlit secrets first, env second."""
     try:
@@ -302,6 +341,7 @@ def _build_route_journal_rows(
     segments: list[dict[str, Any]],
     safe_points: list[dict[str, Any]],
     segment_advice: dict[int, list[str]],
+    open_places: list[dict[str, Any]] | None = None,
 ) -> list[dict[str, Any]]:
     """Yol Günlüğü için tablo satırları: segment puanı + en yakın mesafeler + popup tavsiyesi."""
     rows: list[dict[str, Any]] = []
@@ -327,6 +367,23 @@ def _build_route_journal_rows(
         adv_lines = segment_advice.get(i) or []
         if adv_lines:
             row["popup_notu"] = " | ".join(adv_lines[:2])
+        mp = seg.get("midpoint") if isinstance(seg.get("midpoint"), dict) else {}
+        try:
+            mlat = float(mp.get("lat"))
+            mlon = float(mp.get("lon"))
+        except (TypeError, ValueError):
+            mlat = mlon = None  # type: ignore[assignment]
+        if mlat is not None and mlon is not None and open_places:
+            nearest: list[tuple[float, str]] = []
+            for p in open_places:
+                try:
+                    d = _haversine_m(mlat, mlon, float(p["lat"]), float(p["lon"]))
+                    nearest.append((d, f"{p.get('type')}: {p.get('name')} (~{int(round(d))} m)"))
+                except (KeyError, TypeError, ValueError):
+                    continue
+            if nearest:
+                nearest.sort(key=lambda x: x[0])
+                row["acik_noktalar"] = " | ".join(txt for _, txt in nearest[:2])
         rows.append(row)
 
     # Popup'ta görülen ama segmente düşmeyen notları da kaybetmeyelim.
@@ -701,6 +758,7 @@ def _apply_route_from_api_payload(payload: dict[str, Any], time_mode_api: str) -
         list(st.session_state.route_journal_segments or []),
         list(st.session_state.route_safe_point_popups or []),
         segment_advice,
+        list(st.session_state.get("route_open_places") or []),
     )
 
 
@@ -1078,6 +1136,8 @@ def _init_route_state() -> None:
         st.session_state.route_journal_timeline = []
     if "route_journal_rows" not in st.session_state:
         st.session_state.route_journal_rows = []
+    if "route_open_places" not in st.session_state:
+        st.session_state.route_open_places = []
 
     # Kullanıcının anlık durumu (AI danışmanı kişiselleştirmek için).
     if "user_status" not in st.session_state:
@@ -1463,13 +1523,15 @@ def main() -> None:
         safe_points = _parse_safe_point_popups(st.session_state.get("route_safe_point_popups"))
 
         if segments:
+            open_places = _load_open_places_for_bbox(bbox)
+            st.session_state.route_open_places = list(open_places)
             segment_advice = _map_popup_advice_to_segments(segments, safe_points)
             timeline = _timeline_cards_from_route(segments, segment_advice, bucket_m=200.0)
             if not timeline:
                 timeline = list(st.session_state.get("route_journal_timeline") or [])
             else:
                 st.session_state.route_journal_timeline = list(timeline)
-            journal_rows = _build_route_journal_rows(segments, safe_points, segment_advice)
+            journal_rows = _build_route_journal_rows(segments, safe_points, segment_advice, open_places)
             if journal_rows:
                 st.session_state.route_journal_rows = list(journal_rows)
             else:
