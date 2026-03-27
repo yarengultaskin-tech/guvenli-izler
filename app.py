@@ -1347,49 +1347,50 @@ def main() -> None:
         st.session_state.user_status = _normalize_user_status(status_pick)
         st.sidebar.caption("Seçimine göre kız kardeşin rotayı senin için özel olarak yorumlayacak 💜")
 
-        st.sidebar.markdown("### Konum Ara")
-        start_query = st.sidebar.text_input(
-            "Başlangıç Noktası Ara",
-            placeholder="Örn: Ankara Garı",
-            key="route_start_query",
-        )
-        end_query = st.sidebar.text_input(
-            "Varış Noktası Ara",
-            placeholder="Örn: Kızılay Metro",
-            key="route_end_query",
-        )
-
-        geocode_changed = False
-        sq = str(start_query or "").strip()
-        eq = str(end_query or "").strip()
-        if sq and sq != str(st.session_state.get("_last_geocode_start_query") or ""):
-            found = _geocode_place_name(sq)
-            st.session_state._last_geocode_start_query = sq
-            if found:
-                lat, lon, addr = found
-                _set_route_point("start", lat, lon)
-                st.sidebar.success(f"Başlangıç bulundu: {addr}")
-                geocode_changed = True
-            else:
-                st.sidebar.warning("Başlangıç noktası bulunamadı canım, farklı bir isimle tekrar dener misin?")
-                st.sidebar.caption(
-                    "İpucu: Yer adını daha tam yazmayı deneyin (Örn: Kızılay Alışveriş Merkezi)"
-                )
-        if eq and eq != str(st.session_state.get("_last_geocode_end_query") or ""):
-            found = _geocode_place_name(eq)
-            st.session_state._last_geocode_end_query = eq
-            if found:
-                lat, lon, addr = found
-                _set_route_point("end", lat, lon)
-                st.sidebar.success(f"Varış bulundu: {addr}")
-                geocode_changed = True
-            else:
-                st.sidebar.warning("Varış noktası bulunamadı tatlım, biraz daha net bir yer adı yazalım.")
-                st.sidebar.caption(
-                    "İpucu: Yer adını daha tam yazmayı deneyin (Örn: Kızılay Alışveriş Merkezi)"
-                )
-        if geocode_changed:
-            st.rerun()
+        # Adres arama kutuları kapalı: rota noktaları yalnızca harita tıklamasıyla seçilir.
+        # st.sidebar.markdown("### Konum Ara")
+        # start_query = st.sidebar.text_input(
+        #     "Başlangıç Noktası Ara",
+        #     placeholder="Örn: Ankara Garı",
+        #     key="route_start_query",
+        # )
+        # end_query = st.sidebar.text_input(
+        #     "Varış Noktası Ara",
+        #     placeholder="Örn: Kızılay Metro",
+        #     key="route_end_query",
+        # )
+        #
+        # geocode_changed = False
+        # sq = str(start_query or "").strip()
+        # eq = str(end_query or "").strip()
+        # if sq and sq != str(st.session_state.get("_last_geocode_start_query") or ""):
+        #     found = _geocode_place_name(sq)
+        #     st.session_state._last_geocode_start_query = sq
+        #     if found:
+        #         lat, lon, addr = found
+        #         _set_route_point("start", lat, lon)
+        #         st.sidebar.success(f"Başlangıç bulundu: {addr}")
+        #         geocode_changed = True
+        #     else:
+        #         st.sidebar.warning("Başlangıç noktası bulunamadı canım, farklı bir isimle tekrar dener misin?")
+        #         st.sidebar.caption(
+        #             "İpucu: Yer adını daha tam yazmayı deneyin (Örn: Kızılay Alışveriş Merkezi)"
+        #         )
+        # if eq and eq != str(st.session_state.get("_last_geocode_end_query") or ""):
+        #     found = _geocode_place_name(eq)
+        #     st.session_state._last_geocode_end_query = eq
+        #     if found:
+        #         lat, lon, addr = found
+        #         _set_route_point("end", lat, lon)
+        #         st.sidebar.success(f"Varış bulundu: {addr}")
+        #         geocode_changed = True
+        #     else:
+        #         st.sidebar.warning("Varış noktası bulunamadı tatlım, biraz daha net bir yer adı yazalım.")
+        #         st.sidebar.caption(
+        #             "İpucu: Yer adını daha tam yazmayı deneyin (Örn: Kızılay Alışveriş Merkezi)"
+        #         )
+        # if geocode_changed:
+        #     st.rerun()
 
         start_pt = _get_route_point("start")
         end_pt = _get_route_point("end")
@@ -1454,10 +1455,7 @@ def main() -> None:
 
         if st.sidebar.button("Rota Çiz", type="primary"):
             if not start_pt or not end_pt:
-                if not sq and not eq:
-                    st.sidebar.error("Lütfen haritadan başlangıç ve bitiş seçin.")
-                else:
-                    st.sidebar.warning("Adres araması tamamlanmadı canım; yer adını netleştirip tekrar deneyelim.")
+                st.sidebar.error("Lütfen haritadan başlangıç ve bitiş seçin.")
             else:
                 try:
                     start_lat = float(start_pt["lat"])
