@@ -23,6 +23,7 @@ from utils.local_routing import compute_local_route_payload
 
 DATA_DIR = Path(os.path.join(os.getcwd(), "data"))
 _WARNED_MESSAGES: set[str] = set()
+_ADVISOR_PLACEHOLDER_SNIPPET = "Bu proje dosya tabanli modda calisiyor."
 
 
 def _warn_once(message: str) -> None:
@@ -667,8 +668,11 @@ def _dynamic_ai_advice(route_payload: dict[str, Any], user_status: str) -> str |
             text = str(getattr(rsp, "text", "") or "").strip()
             if text:
                 return text
+            st.error("Gemini yanıtı boş döndü. Model veya kota ayarlarını kontrol et.")
         except Exception as exc:
             st.error(f"Gemini API çağrısı başarısız: {exc}")
+    else:
+        st.error("GEMINI_API_KEY bulunamadı. `.streamlit/secrets.toml` dosyasını kontrol et.")
 
     openai_key = _get_secret_value("OPENAI_API_KEY")
     if openai_key:
@@ -721,6 +725,9 @@ def _fetch_security_advisor(
         text = str(payload.get("advice") or "").strip()
         safe_points = _parse_safe_point_popups(payload.get("safe_point_popups"))
         json_ok = bool(payload.get("advisor_json_ok", True))
+        if _ADVISOR_PLACEHOLDER_SNIPPET in text:
+            # Placeholder metni kullanıcıya "AI notu" gibi göstermeyelim.
+            continue
         if text:
             return text, safe_points, None, json_ok
 
