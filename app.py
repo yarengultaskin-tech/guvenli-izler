@@ -1653,6 +1653,9 @@ def main() -> None:
         st.caption(
             "Haritaya tıklayarak başlangıç ve bitiş seç; sol panelden **Rota Çiz** ile güvenli yolu al."
         )
+    st.caption(
+        "ℹ️ Güven puanları; karakol mesafesi, metro erişimi, sokak aydınlatması ve kullanıcı deneyim verilerine dayanılarak hesaplanmaktadır. Pilot bölge: Çankaya."
+    )
 
 
 if __name__ == "__main__":
