@@ -33,6 +33,91 @@
         "type": "Point",
         "coordinates": [32.8548, 39.9389]
       }
+    },
+    {
+      "type": "Feature",
+      "properties": {"id": "park-4", "name": "Guvenpark"},
+      "geometry": {"type": "Point", "coordinates": [32.8544, 39.9199]}
+    },
+    {
+      "type": "Feature",
+      "properties": {"id": "park-5", "name": "Dikmen Vadisi Parki"},
+      "geometry": {"type": "Point", "coordinates": [32.8589, 39.8847]}
+    },
+    {
+      "type": "Feature",
+      "properties": {"id": "park-6", "name": "Ahlatlibel Parki"},
+      "geometry": {"type": "Point", "coordinates": [32.8205, 39.8735]}
+    },
+    {
+      "type": "Feature",
+      "properties": {"id": "park-7", "name": "50. Yil Parki"},
+      "geometry": {"type": "Point", "coordinates": [32.8487, 39.9141]}
+    },
+    {
+      "type": "Feature",
+      "properties": {"id": "park-8", "name": "Botanik Parki"},
+      "geometry": {"type": "Point", "coordinates": [32.8681, 39.8948]}
+    },
+    {
+      "type": "Feature",
+      "properties": {"id": "park-9", "name": "Seymenler Parki"},
+      "geometry": {"type": "Point", "coordinates": [32.8662, 39.9007]}
+    },
+    {
+      "type": "Feature",
+      "properties": {"id": "park-10", "name": "Cankaya Belediye Parki"},
+      "geometry": {"type": "Point", "coordinates": [32.8592, 39.9078]}
+    },
+    {
+      "type": "Feature",
+      "properties": {"id": "park-11", "name": "Kurtulus Parki"},
+      "geometry": {"type": "Point", "coordinates": [32.8529, 39.9312]}
+    },
+    {
+      "type": "Feature",
+      "properties": {"id": "park-12", "name": "Ayranci Parki"},
+      "geometry": {"type": "Point", "coordinates": [32.8546, 39.9108]}
+    },
+    {
+      "type": "Feature",
+      "properties": {"id": "park-13", "name": "Baskent Millet Bahcesi Noktasi"},
+      "geometry": {"type": "Point", "coordinates": [32.8811, 39.9184]}
+    },
+    {
+      "type": "Feature",
+      "properties": {"id": "park-14", "name": "100. Yil Yesil Alan"},
+      "geometry": {"type": "Point", "coordinates": [32.8348, 39.8992]}
+    },
+    {
+      "type": "Feature",
+      "properties": {"id": "park-15", "name": "Birlik Parki"},
+      "geometry": {"type": "Point", "coordinates": [32.8893, 39.9017]}
+    },
+    {
+      "type": "Feature",
+      "properties": {"id": "park-16", "name": "Balgat Mahalle Parki"},
+      "geometry": {"type": "Point", "coordinates": [32.8295, 39.9127]}
+    },
+    {
+      "type": "Feature",
+      "properties": {"id": "park-17", "name": "Maltepe Parki"},
+      "geometry": {"type": "Point", "coordinates": [32.8452, 39.9278]}
+    },
+    {
+      "type": "Feature",
+      "properties": {"id": "park-18", "name": "Gaziosmanpasa Parki"},
+      "geometry": {"type": "Point", "coordinates": [32.8722, 39.9079]}
+    },
+    {
+      "type": "Feature",
+      "properties": {"id": "park-19", "name": "Cayyolu Yolu Yesil Bant Noktasi"},
+      "geometry": {"type": "Point", "coordinates": [32.8228, 39.9213]}
+    },
+    {
+      "type": "Feature",
+      "properties": {"id": "park-20", "name": "Kavaklidere Cep Parki"},
+      "geometry": {"type": "Point", "coordinates": [32.8579, 39.9094]}
     }
   ]
 }

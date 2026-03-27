@@ -33,6 +33,66 @@
         "type": "Point",
         "coordinates": [32.8668, 39.9062]
       }
+    },
+    {
+      "type": "Feature",
+      "properties": {"id": "pol-4", "name": "Ayranci Polis Merkezi"},
+      "geometry": {"type": "Point", "coordinates": [32.8571, 39.9104]}
+    },
+    {
+      "type": "Feature",
+      "properties": {"id": "pol-5", "name": "Kolej Polis Noktasi"},
+      "geometry": {"type": "Point", "coordinates": [32.8628, 39.9262]}
+    },
+    {
+      "type": "Feature",
+      "properties": {"id": "pol-6", "name": "Dikmen Polis Noktasi"},
+      "geometry": {"type": "Point", "coordinates": [32.8580, 39.8898]}
+    },
+    {
+      "type": "Feature",
+      "properties": {"id": "pol-7", "name": "Balgat Emniyet Birimi"},
+      "geometry": {"type": "Point", "coordinates": [32.8291, 39.9114]}
+    },
+    {
+      "type": "Feature",
+      "properties": {"id": "pol-8", "name": "Gaziosmanpasa Polis Noktasi"},
+      "geometry": {"type": "Point", "coordinates": [32.8731, 39.9086]}
+    },
+    {
+      "type": "Feature",
+      "properties": {"id": "pol-9", "name": "Maltepe Polis Merkezi"},
+      "geometry": {"type": "Point", "coordinates": [32.8458, 39.9282]}
+    },
+    {
+      "type": "Feature",
+      "properties": {"id": "pol-10", "name": "Birlik Emniyet Noktasi"},
+      "geometry": {"type": "Point", "coordinates": [32.8915, 39.9024]}
+    },
+    {
+      "type": "Feature",
+      "properties": {"id": "pol-11", "name": "Oran Polis Noktasi"},
+      "geometry": {"type": "Point", "coordinates": [32.8451, 39.8816]}
+    },
+    {
+      "type": "Feature",
+      "properties": {"id": "pol-12", "name": "Yildizevler Emniyet Noktasi"},
+      "geometry": {"type": "Point", "coordinates": [32.8688, 39.8927]}
+    },
+    {
+      "type": "Feature",
+      "properties": {"id": "pol-13", "name": "Cebeci Polis Noktasi"},
+      "geometry": {"type": "Point", "coordinates": [32.8650, 39.9361]}
+    },
+    {
+      "type": "Feature",
+      "properties": {"id": "pol-14", "name": "Yukari Bahcelievler Polis Noktasi"},
+      "geometry": {"type": "Point", "coordinates": [32.8402, 39.9236]}
+    },
+    {
+      "type": "Feature",
+      "properties": {"id": "pol-15", "name": "Kavaklidere Polis Birimi"},
+      "geometry": {"type": "Point", "coordinates": [32.8588, 39.9088]}
     }
   ]
 }

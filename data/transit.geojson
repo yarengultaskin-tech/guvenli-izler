@@ -48,6 +48,86 @@
         "type": "Point",
         "coordinates": [32.8624, 39.9258]
       }
+    },
+    {
+      "type": "Feature",
+      "properties": {"id": "tr-5", "name": "Sihhiye Metro", "transit_type": "metro"},
+      "geometry": {"type": "Point", "coordinates": [32.8518, 39.9274]}
+    },
+    {
+      "type": "Feature",
+      "properties": {"id": "tr-6", "name": "Demirtepe Metro", "transit_type": "metro"},
+      "geometry": {"type": "Point", "coordinates": [32.8478, 39.9234]}
+    },
+    {
+      "type": "Feature",
+      "properties": {"id": "tr-7", "name": "Bahcelievler Metro", "transit_type": "metro"},
+      "geometry": {"type": "Point", "coordinates": [32.8340, 39.9248]}
+    },
+    {
+      "type": "Feature",
+      "properties": {"id": "tr-8", "name": "Emek Metro", "transit_type": "metro"},
+      "geometry": {"type": "Point", "coordinates": [32.8265, 39.9244]}
+    },
+    {
+      "type": "Feature",
+      "properties": {"id": "tr-9", "name": "Besevler Metro", "transit_type": "metro"},
+      "geometry": {"type": "Point", "coordinates": [32.8196, 39.9238]}
+    },
+    {
+      "type": "Feature",
+      "properties": {"id": "tr-10", "name": "Asti Metro", "transit_type": "metro"},
+      "geometry": {"type": "Point", "coordinates": [32.8132, 39.9195]}
+    },
+    {
+      "type": "Feature",
+      "properties": {"id": "tr-11", "name": "Dikimevi Metro", "transit_type": "metro"},
+      "geometry": {"type": "Point", "coordinates": [32.8740, 39.9381]}
+    },
+    {
+      "type": "Feature",
+      "properties": {"id": "tr-12", "name": "Sogutozu Metro", "transit_type": "metro"},
+      "geometry": {"type": "Point", "coordinates": [32.8130, 39.9141]}
+    },
+    {
+      "type": "Feature",
+      "properties": {"id": "tr-13", "name": "Kizilay AVM Duragi", "transit_type": "bus"},
+      "geometry": {"type": "Point", "coordinates": [32.8530, 39.9196]}
+    },
+    {
+      "type": "Feature",
+      "properties": {"id": "tr-14", "name": "Guvenpark Duragi", "transit_type": "bus"},
+      "geometry": {"type": "Point", "coordinates": [32.8548, 39.9198]}
+    },
+    {
+      "type": "Feature",
+      "properties": {"id": "tr-15", "name": "Ayranci Duragi", "transit_type": "bus"},
+      "geometry": {"type": "Point", "coordinates": [32.8548, 39.9109]}
+    },
+    {
+      "type": "Feature",
+      "properties": {"id": "tr-16", "name": "Kavaklidere Duragi", "transit_type": "bus"},
+      "geometry": {"type": "Point", "coordinates": [32.8575, 39.9089]}
+    },
+    {
+      "type": "Feature",
+      "properties": {"id": "tr-17", "name": "Gaziosmanpasa Duragi", "transit_type": "bus"},
+      "geometry": {"type": "Point", "coordinates": [32.8716, 39.9077]}
+    },
+    {
+      "type": "Feature",
+      "properties": {"id": "tr-18", "name": "Balgat Duragi", "transit_type": "bus"},
+      "geometry": {"type": "Point", "coordinates": [32.8290, 39.9118]}
+    },
+    {
+      "type": "Feature",
+      "properties": {"id": "tr-19", "name": "Maltepe Duragi", "transit_type": "bus"},
+      "geometry": {"type": "Point", "coordinates": [32.8450, 39.9280]}
+    },
+    {
+      "type": "Feature",
+      "properties": {"id": "tr-20", "name": "Tunali Hilmi Duragi 2", "transit_type": "bus"},
+      "geometry": {"type": "Point", "coordinates": [32.8623, 39.9068]}
     }
   ]
 }

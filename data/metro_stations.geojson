@@ -33,6 +33,66 @@
         "type": "Point",
         "coordinates": [32.8624, 39.9258]
       }
+    },
+    {
+      "type": "Feature",
+      "properties": {"id": "metro-4", "name": "Sihhiye Metro"},
+      "geometry": {"type": "Point", "coordinates": [32.8518, 39.9274]}
+    },
+    {
+      "type": "Feature",
+      "properties": {"id": "metro-5", "name": "Demirtepe Metro"},
+      "geometry": {"type": "Point", "coordinates": [32.8478, 39.9234]}
+    },
+    {
+      "type": "Feature",
+      "properties": {"id": "metro-6", "name": "Milli Kutuphane Metro"},
+      "geometry": {"type": "Point", "coordinates": [32.8382, 39.9250]}
+    },
+    {
+      "type": "Feature",
+      "properties": {"id": "metro-7", "name": "Bahcelievler Metro"},
+      "geometry": {"type": "Point", "coordinates": [32.8340, 39.9248]}
+    },
+    {
+      "type": "Feature",
+      "properties": {"id": "metro-8", "name": "Emek Metro"},
+      "geometry": {"type": "Point", "coordinates": [32.8265, 39.9244]}
+    },
+    {
+      "type": "Feature",
+      "properties": {"id": "metro-9", "name": "Besevler Metro"},
+      "geometry": {"type": "Point", "coordinates": [32.8196, 39.9238]}
+    },
+    {
+      "type": "Feature",
+      "properties": {"id": "metro-10", "name": "Maltepe Metro"},
+      "geometry": {"type": "Point", "coordinates": [32.8446, 39.9285]}
+    },
+    {
+      "type": "Feature",
+      "properties": {"id": "metro-11", "name": "Anadolu Metro Cikis"},
+      "geometry": {"type": "Point", "coordinates": [32.8578, 39.9186]}
+    },
+    {
+      "type": "Feature",
+      "properties": {"id": "metro-12", "name": "Tandogan Metro Cikis"},
+      "geometry": {"type": "Point", "coordinates": [32.8394, 39.9324]}
+    },
+    {
+      "type": "Feature",
+      "properties": {"id": "metro-13", "name": "Asti Metro Cikis"},
+      "geometry": {"type": "Point", "coordinates": [32.8132, 39.9195]}
+    },
+    {
+      "type": "Feature",
+      "properties": {"id": "metro-14", "name": "Dikimevi Metro Cikis"},
+      "geometry": {"type": "Point", "coordinates": [32.8740, 39.9381]}
+    },
+    {
+      "type": "Feature",
+      "properties": {"id": "metro-15", "name": "Sogutozu Metro Cikis"},
+      "geometry": {"type": "Point", "coordinates": [32.8130, 39.9141]}
     }
   ]
 }
