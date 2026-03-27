@@ -631,7 +631,6 @@ def fetch_osm_layer(
     max_points = 350
     payload = None
     tried_paths: list[str] = []
-    debug_details: list[str] = []
     for file_path in _data_file_candidates(f"{layer_name}.geojson"):
         tried_paths.append(file_path.as_posix())
         payload = _load_json_file(
@@ -640,7 +639,6 @@ def fetch_osm_layer(
             parse_error_message=f"{layer_name} katmanı okunamadı",
         )
         if payload is not None:
-            debug_details.append(f"{layer_name}: yüklendi -> {file_path.as_posix()}")
             break
     if payload is None:
         st.error(f"{layer_name} katmanı için dosya bulunamadı. Aranan yollar: " + ", ".join(tried_paths))
@@ -662,13 +660,7 @@ def fetch_osm_layer(
                 r["transit_type"] = r.get("transit_type") or "metro"
             if fallback_rows:
                 rows = fallback_rows
-                debug_details.append(f"transit fallback: metro_stations -> {file_path.as_posix()}")
                 break
-    try:
-        if debug_details:
-            st.sidebar.write(" | ".join(debug_details))
-    except Exception:
-        pass
     if len(rows) > max_points:
         return rows[:max_points]
     return rows
@@ -1243,28 +1235,24 @@ def main() -> None:
                     bbox=bbox,
                     refresh=refresh_layers,
                 )
-                st.sidebar.write(f"Katman police_stations yüklendi, nokta sayısı: {len(extra_layers['police_stations'])}")
             if show_lamps:
                 extra_layers["street_lamps"] = fetch_osm_layer(
                     layer_name="street_lamps",
                     bbox=bbox,
                     refresh=refresh_layers,
                 )
-                st.sidebar.write(f"Katman street_lamps yüklendi, nokta sayısı: {len(extra_layers['street_lamps'])}")
             if show_parks:
                 extra_layers["parks"] = fetch_osm_layer(
                     layer_name="parks",
                     bbox=bbox,
                     refresh=refresh_layers,
                 )
-                st.sidebar.write(f"Katman parks yüklendi, nokta sayısı: {len(extra_layers['parks'])}")
             if show_transit:
                 extra_layers["transit"] = fetch_osm_layer(
                     layer_name="transit",
                     bbox=bbox,
                     refresh=refresh_layers,
                 )
-                st.sidebar.write(f"Katman transit yüklendi, nokta sayısı: {len(extra_layers['transit'])}")
     else:
         st.sidebar.subheader("Güvenli rota (A -> B)")
         st.sidebar.caption("Günün saatine göre rota, mesafe ile güvenlik arasında otomatik denge kurar.")
