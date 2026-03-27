@@ -4,12 +4,10 @@ from __future__ import annotations
 
 import copy
 import json
-import os
 import math
 from pathlib import Path
 from typing import Any, Optional
 
-import requests
 import streamlit as st
 from streamlit_folium import st_folium
 
@@ -20,6 +18,87 @@ from map_view import (
     build_cankaya_map,
     default_bbox,
 )
+
+DATA_DIR = Path(__file__).resolve().parent / "data"
+_WARNED_MESSAGES: set[str] = set()
+
+
+def _warn_once(message: str) -> None:
+    if message in _WARNED_MESSAGES:
+        return
+    _WARNED_MESSAGES.add(message)
+    st.warning(message)
+
+
+def _load_json_file(path: Path, *, missing_message: str, parse_error_message: str) -> Any:
+    try:
+        if not path.is_file():
+            _warn_once(missing_message)
+            return None
+        return json.loads(path.read_text(encoding="utf-8"))
+    except Exception as exc:
+        _warn_once(f"{parse_error_message}: {exc}")
+        return None
+
+
+def _bbox_contains(
+    *,
+    lat: float,
+    lon: float,
+    bbox: dict[str, float],
+) -> bool:
+    return (
+        bbox["min_latitude"] <= lat <= bbox["max_latitude"]
+        and bbox["min_longitude"] <= lon <= bbox["max_longitude"]
+    )
+
+
+def _geojson_points_to_rows(
+    payload: Any,
+    *,
+    layer_name: str,
+    bbox: dict[str, float],
+) -> list[dict[str, Any]]:
+    if not isinstance(payload, dict):
+        return []
+    features = payload.get("features")
+    if not isinstance(features, list):
+        return []
+    rows: list[dict[str, Any]] = []
+    for ft in features:
+        if not isinstance(ft, dict):
+            continue
+        geom = ft.get("geometry")
+        props = ft.get("properties") if isinstance(ft.get("properties"), dict) else {}
+        if not isinstance(geom, dict):
+            continue
+        if str(geom.get("type")) != "Point":
+            continue
+        coords = geom.get("coordinates")
+        if not isinstance(coords, list) or len(coords) < 2:
+            continue
+        try:
+            lon = float(coords[0])
+            lat = float(coords[1])
+        except (TypeError, ValueError):
+            continue
+        if not _bbox_contains(lat=lat, lon=lon, bbox=bbox):
+            continue
+        rows.append(
+            {
+                "id": props.get("id"),
+                "layer": layer_name,
+                "latitude": lat,
+                "longitude": lon,
+                "lat": lat,
+                "lon": lon,
+                "name": props.get("name"),
+                "tags": props.get("tags") if isinstance(props.get("tags"), dict) else {},
+                "transit_type": props.get("transit_type"),
+                "tag_type": props.get("tag_type"),
+            }
+        )
+    return rows
 
 
 def _haversine_m(lat1: float, lon1: float, lat2: float, lon2: float) -> float:
@@ -233,55 +312,48 @@ except Exception:
     pass
 
 
-def get_api_url() -> str:
-    # Default backend URL (user request): localhost:8001
-    return os.getenv("API_URL", "http://localhost:8001").rstrip("/")
-
-
 def fetch_traces(
     bbox: dict[str, float],
     tag_filter: Optional[str],
 ) -> list[dict[str, Any]]:
-    params: dict[str, Any] = {
-        "min_latitude": bbox["min_latitude"],
-        "min_longitude": bbox["min_longitude"],
-        "max_latitude": bbox["max_latitude"],
-        "max_longitude": bbox["max_longitude"],
-        "limit": 500,
-    }
-    if tag_filter and tag_filter != "Tümü":
-        params["tag_type"] = tag_filter
-    try:
-        response = requests.get(
-            f"{get_api_url()}/traces",
-            params=params,
-            timeout=45,
+    candidates = [DATA_DIR / "traces.geojson", DATA_DIR / "traces.json"]
+    payload: Any = None
+    for path in candidates:
+        payload = _load_json_file(
+            path,
+            missing_message=f"Veri dosyası bulunamadı: {path.as_posix()}",
+            parse_error_message="İz verisi okunamadı",
         )
-        response.raise_for_status()
-        data = response.json()
-        if isinstance(data, list):
-            return data
+        if payload is not None:
+            break
+    if payload is None:
         return []
-    except Exception as exc:
-        st.warning(f"İzler yüklenemedi (API veya veritabanı kapalı olabilir): {exc}")
-        return []
+    if isinstance(payload, list):
+        rows = payload
+    else:
+        rows = _geojson_points_to_rows(payload, layer_name="traces", bbox=bbox)
+    out: list[dict[str, Any]] = []
+    for row in rows:
+        if not isinstance(row, dict):
+            continue
+        try:
+            lat = float(row.get("latitude"))
+            lon = float(row.get("longitude"))
+        except (TypeError, ValueError):
+            continue
+        if not _bbox_contains(lat=lat, lon=lon, bbox=bbox):
+            continue
+        tag = str(row.get("tag_type") or "")
+        if tag_filter and tag_filter != "Tümü" and tag != tag_filter:
+            continue
+        out.append({"latitude": lat, "longitude": lon, "tag_type": tag, "id": row.get("id")})
+    return out
 
 
 def post_trace(latitude: float, longitude: float, tag_type: str) -> bool:
-    payload = {"latitude": latitude, "longitude": longitude, "tag_type": tag_type}
-    try:
-        response = requests.post(
-            f"{get_api_url()}/traces",
-            json=payload,
-            timeout=15,
-        )
-        if response.status_code == 201:
-            return True
-        st.error(f"Kayıt başarısız: {response.status_code} — {response.text}")
-        return False
-    except Exception as exc:
-        st.error(f"API isteği başarısız: {exc}")
-        return False
+    # Streamlit Cloud'da localhost API yok; iz ekleme yalnız dosya tabanlı kullanımda desteklenir.
+    st.info("Bulut modunda yeni iz kaydı kapalı. Yerel veri dosyası kullanılıyor.")
+    return False
 
 
 def fetch_osm_layer(
@@ -290,42 +362,36 @@ def fetch_osm_layer(
     bbox: dict[str, float],
     refresh: bool = False,
 ) -> list[dict[str, Any]]:
-    # Folium marker sayısı HTML boyutunu hızla büyütür; performans için örnekleme.
+    _ = refresh  # dosya tabanlı modda manuel yenileme yok
     max_points = 350
-    params: dict[str, Any] = {
-        "min_latitude": bbox["min_latitude"],
-        "min_longitude": bbox["min_longitude"],
-        "max_latitude": bbox["max_latitude"],
-        "max_longitude": bbox["max_longitude"],
-        "refresh": str(refresh).lower(),
-    }
-    try:
-        # metro_stations: açık /layers/metro_stations rotası (404 kaçınma)
-        path = "/layers/metro_stations" if layer_name == "metro_stations" else f"/layers/{layer_name}"
-        response = requests.get(
-            f"{get_api_url()}{path}",
-            params=params,
-            timeout=120,
+    file_path = DATA_DIR / f"{layer_name}.geojson"
+    payload = _load_json_file(
+        file_path,
+        missing_message=f"Veri dosyası bulunamadı: {file_path.as_posix()}",
+        parse_error_message=f"{layer_name} katmanı okunamadı",
+    )
+    if payload is None:
+        return []
+    rows = _geojson_points_to_rows(payload, layer_name=layer_name, bbox=bbox)
+    if len(rows) > max_points:
+        return rows[:max_points]
+    return rows
+
+
+def _load_route_payload_from_file(time_mode_api: str) -> dict[str, Any] | None:
+    candidates = [
+        DATA_DIR / f"route_{time_mode_api}.json",
+        DATA_DIR / "route.json",
+    ]
+    for path in candidates:
+        payload = _load_json_file(
+            path,
+            missing_message=f"Veri dosyası bulunamadı: {path.as_posix()}",
+            parse_error_message="Rota verisi okunamadı",
         )
-        response.raise_for_status()
-        payload = response.json()
-        # Backend new format: {"data":[{latitude,longitude,name,tags,...}], ...}
-        # Backward compatible: {"elements":[{lat,lon,tags:{name}}, ...], ...}
         if isinstance(payload, dict):
-            rows = payload.get("data")
-            if isinstance(rows, list):
-                if len(rows) > max_points:
-                    return rows[:max_points]
-                return rows
-            rows = payload.get("elements")
-            if isinstance(rows, list):
-                if len(rows) > max_points:
-                    return rows[:max_points]
-                return rows
-        return []
-    except Exception as exc:
-        st.warning(f"{layer_name} katmanı yüklenemedi: {exc}")
-        return []
+            return payload
+    return None
 
 
 def _metro_rows_to_markers(rows: list[dict[str, Any]]) -> list[dict[str, Any]]:
@@ -484,48 +550,32 @@ def _fetch_security_advisor(
     route_payload: dict[str, Any],
     time_mode_api: str,
 ) -> tuple[Optional[str], list[dict[str, Any]], Optional[str], bool]:
-    """POST /advisor → (tavsiye_metni, safe_point_popups, hata_metni, advisor_json_ok)."""
+    """Dosyadan danışman verisi oku → (tavsiye_metni, safe_point_popups, hata_metni, advisor_json_ok)."""
     segments = route_payload.get("segments")
     total, unk_c, low_c = _route_segment_light_stats(segments)
-    body: dict[str, Any] = {
-        "time_mode": route_payload.get("time_mode") or time_mode_api,
-        "night_analysis": bool(route_payload.get("night_analysis")),
-        "safety_score": float(route_payload.get("safety_score") or 0.0),
-        "unknown_ratio": float(route_payload.get("unknown_ratio") or 0.0),
-        "label": str(route_payload.get("label") or ""),
-        "segment_score_min": route_payload.get("segment_score_min"),
-        "segment_score_max": route_payload.get("segment_score_max"),
-        "metro_proximity_summary": _metro_proximity_summary(route_payload.get("nearby_stations")),
-        "total_segment_count": total,
-        "unknown_light_segment_count": unk_c,
-        "low_light_segment_count": low_c,
-        "edge_count": route_payload.get("edge_count"),
-        "advisor_segments": route_payload.get("advisor_segments") or [],
-        "user_status": st.session_state.get("user_status") or "🫂 Yalnızım",
-    }
-    try:
-        response = requests.post(
-            f"{get_api_url()}/advisor",
-            json=body,
-            timeout=90,
+    _ = total, unk_c, low_c  # Hesaplar metin fallback'inde ileride kullanılabilir.
+    candidates = [
+        DATA_DIR / f"advisor_{time_mode_api}.json",
+        DATA_DIR / "advisor.json",
+    ]
+    for path in candidates:
+        payload = _load_json_file(
+            path,
+            missing_message=f"Veri dosyası bulunamadı: {path.as_posix()}",
+            parse_error_message="Danışman verisi okunamadı",
         )
-        if not response.ok:
-            try:
-                err_json = response.json()
-                detail = err_json.get("detail")
-                if isinstance(detail, str):
-                    return None, [], detail, True
-            except Exception:
-                pass
-            return None, [], response.text or response.reason or str(response.status_code), True
-        data = response.json()
-        text = str(data.get("advice") or "").strip()
-        safe_point_popups_raw = data.get("safe_point_popups") or []
-        safe_point_popups = _parse_safe_point_popups(safe_point_popups_raw)
-        json_ok = bool(data.get("advisor_json_ok", True))
-        return (text or None), safe_point_popups, None, json_ok
-    except Exception as exc:
-        return None, [], str(exc), True
+        if not isinstance(payload, dict):
+            continue
+        text = str(payload.get("advice") or "").strip()
+        safe_points = _parse_safe_point_popups(payload.get("safe_point_popups"))
+        json_ok = bool(payload.get("advisor_json_ok", True))
+        return (text or None), safe_points, None, json_ok
+
+    fallback_text = (
+        "Kişisel not dosyası bulunamadı. `data/advisor.json` dosyasını ekleyebilir veya "
+        "`data/advisor_day.json` / `data/advisor_night.json` kullanabilirsin."
+    )
+    return fallback_text, [], None, True
 
 
 def _segment_score_range_from_list(segments: Any) -> tuple[float | None, float | None]:
@@ -727,7 +777,7 @@ def main() -> None:
         )
         route_time_mode_api = "night" if time_pick == "🌙 Gece Modu" else "day"
         basemap_for_route = "dark" if route_time_mode_api == "night" else "light"
-        st.sidebar.caption(f"API'ye gönderilen `time_mode`: **{route_time_mode_api}** (gündüz=`day`, gece=`night`)")
+        st.sidebar.caption(f"Dosyadan okunan rota modu: **{route_time_mode_api}** (gündüz=`day`, gece=`night`)")
 
         st.sidebar.subheader("O Anki Durumum")
         status_options = ["🫂 Yalnızım", "🍼 Bebek Arabam/Bavulum Var", "🏃‍♀️ Acelem Var"]
@@ -746,26 +796,17 @@ def main() -> None:
             and st.session_state.get("route_time_mode") != route_time_mode_api
         ):
             try:
-                start_lat = float(st.session_state.start_point["lat"])
-                start_lon = float(st.session_state.start_point["lon"])
-                end_lat = float(st.session_state.end_point["lat"])
-                end_lon = float(st.session_state.end_point["lon"])
+                _ = float(st.session_state.start_point["lat"])
+                _ = float(st.session_state.start_point["lon"])
+                _ = float(st.session_state.end_point["lat"])
+                _ = float(st.session_state.end_point["lon"])
                 with st.spinner("Zaman modu değişti; rota ve puanlar yeniden hesaplanıyor…"):
-                    response = requests.post(
-                        f"{get_api_url()}/route",
-                        json=_route_post_json_body(
-                            start_lat=start_lat,
-                            start_lon=start_lon,
-                            end_lat=end_lat,
-                            end_lon=end_lon,
-                            time_mode=route_time_mode_api,
-                            refresh_graph=False,
-                        ),
-                        timeout=300,
-                    )
-                    response.raise_for_status()
-                    _apply_route_from_api_payload(response.json(), route_time_mode_api)
-                    st.rerun()
+                    payload = _load_route_payload_from_file(route_time_mode_api)
+                    if not payload:
+                        st.sidebar.warning("Rota verisi dosyadan okunamadı. `data/route.json` ekleyin.")
+                    else:
+                        _apply_route_from_api_payload(payload, route_time_mode_api)
+                        st.rerun()
             except Exception as exc:
                 st.sidebar.warning(f"Mod değişince otomatik güncelleme başarısız: {exc}. Lütfen **Rota Çiz**'e bas.")
 
@@ -813,41 +854,16 @@ def main() -> None:
                     end_lon = float(st.session_state.end_point["lon"])
 
                     with st.spinner("Güvenli yol hesaplanıyor..."):
-                        try:
-                            response = requests.post(
-                                f"{get_api_url()}/route",
-                                json=_route_post_json_body(
-                                    start_lat=start_lat,
-                                    start_lon=start_lon,
-                                    end_lat=end_lat,
-                                    end_lon=end_lon,
-                                    time_mode=route_time_mode_api,
-                                    refresh_graph=False,
-                                ),
-                                timeout=300,
+                        _ = start_lat, start_lon, end_lat, end_lon
+                        payload = _load_route_payload_from_file(route_time_mode_api)
+                        if not payload:
+                            st.sidebar.error(
+                                "Rota dosyası okunamadı. `data/route.json` veya "
+                                f"`data/route_{route_time_mode_api}.json` dosyasını ekleyin."
                             )
-                            response.raise_for_status()
-                            _apply_route_from_api_payload(response.json(), route_time_mode_api)
-                            st.sidebar.success("Rota çizildi.")
-                            st.rerun()
-                        except Exception as exc:
-                            # B planı: cache bozulduysa veya Overpass sorunluysa graph'ı yenileyerek en kısa yol dene.
-                            st.warning(f"Güvenli rota hesaplanamadı, en kısa yol deneniyor: {exc}")
-                            response2 = requests.post(
-                                f"{get_api_url()}/route",
-                                json=_route_post_json_body(
-                                    start_lat=start_lat,
-                                    start_lon=start_lon,
-                                    end_lat=end_lat,
-                                    end_lon=end_lon,
-                                    time_mode=route_time_mode_api,
-                                    refresh_graph=True,
-                                ),
-                                timeout=300,
-                            )
-                            response2.raise_for_status()
-                            _apply_route_from_api_payload(response2.json(), route_time_mode_api)
-                            st.sidebar.success("En kısa yol çizildi.")
+                        else:
+                            _apply_route_from_api_payload(payload, route_time_mode_api)
+                            st.sidebar.success("Rota dosyadan yüklendi.")
                             st.rerun()
                 except Exception as exc:
                     st.sidebar.error(f"Rota hesaplanamadı: {exc}")
