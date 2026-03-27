@@ -1,5 +1,7 @@
-# Büyük veri dosyaları (Hata veren yer burası)
-data/
+# Büyük veri dosyaları
+data/osmnx_cache/
+data/osm_cache/
+data/guvenli_izler.db
 osmnx_cache/
 
 # Şifreler ve Gizli Dosyalar

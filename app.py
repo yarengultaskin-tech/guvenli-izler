@@ -279,11 +279,11 @@ def _bucket_poi_summary(segment_indices: list[int], segments: list[dict[str, Any
         seg = segments[i]
         if not isinstance(seg, dict):
             continue
-        for label, key in (
-            ("Karakol", "nearest_police"),
-            ("Eczane", "nearest_pharmacy"),
-            ("Metro", "nearest_metro"),
-            ("Taksi", "nearest_taxi"),
+        for label, key, dist_key in (
+            ("Karakol", "nearest_police", "nearest_police_dist"),
+            ("Eczane", "nearest_pharmacy", "nearest_pharmacy_dist"),
+            ("Metro", "nearest_metro", "nearest_metro_dist"),
+            ("Taksi", "nearest_taxi", "nearest_taxi_dist"),
         ):
             poi = seg.get(key)
             if isinstance(poi, dict) and poi.get("name"):
@@ -294,6 +294,15 @@ def _bucket_poi_summary(segment_indices: list[int], segments: list[dict[str, Any
                     d_txt = ""
                 bit = f"{label}: {poi.get('name')}{d_txt}"
                 if bit not in seen:
+                    seen.add(bit)
+                    bits.append(bit)
+            elif seg.get(dist_key) is not None:
+                try:
+                    d_txt = f" ~{int(round(float(seg.get(dist_key))))} m"
+                except (TypeError, ValueError):
+                    d_txt = ""
+                bit = f"{label}:{d_txt}" if d_txt else ""
+                if bit and bit not in seen:
                     seen.add(bit)
                     bits.append(bit)
         lit = seg.get("lighting")
@@ -307,6 +316,39 @@ def _bucket_poi_summary(segment_indices: list[int], segments: list[dict[str, Any
                 seen.add(bit)
                 bits.append(bit)
     return " · ".join(bits[:6]) if bits else ""
+
+
+def _bucket_remaining_meters(
+    card: dict[str, Any],
+    segments: list[dict[str, Any]],
+) -> int | None:
+    """Kart diliminin sonunda varışa yaklaşık kaç metre kaldığını hesapla."""
+    seg_ix = list(card.get("segment_indices") or [])
+    if not seg_ix:
+        return None
+    end_m_values: list[float] = []
+    total_m_values: list[float] = []
+    for i in seg_ix:
+        if not (0 <= int(i) < len(segments)):
+            continue
+        seg = segments[int(i)]
+        if not isinstance(seg, dict):
+            continue
+        for key, bucket in (("along_route_end_m", end_m_values), ("route_total_m", total_m_values)):
+            val = seg.get(key)
+            try:
+                if val is not None:
+                    bucket.append(float(val))
+            except (TypeError, ValueError):
+                continue
+    if not end_m_values:
+        return None
+    end_m = max(end_m_values)
+    total_m = max(total_m_values) if total_m_values else max(
+        [_advisor_segment_mid_m(s, idx) for idx, s in enumerate(segments)] or [end_m]
+    )
+    remain = max(0.0, total_m - end_m)
+    return int(round(remain))
 
 
 def _advisor_text_for_display(text: str | None) -> str:
@@ -1237,7 +1279,10 @@ def main() -> None:
                 advices = list(card.get("advices") or [])
                 seg_ix = list(card.get("segment_indices") or [])
                 poi_line = _bucket_poi_summary(seg_ix, segments)
+                remain_m = _bucket_remaining_meters(card, segments)
                 title = f"👣 {lo}–{hi} m"
+                if remain_m is not None:
+                    title += f" · varışa ~{remain_m} m kaldı"
 
                 if use_expanders:
                     with st.expander(title, expanded=(card_i < 2)):
