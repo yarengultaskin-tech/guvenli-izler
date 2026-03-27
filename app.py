@@ -1196,8 +1196,16 @@ def main() -> None:
     _init_trace_location_state()
     _init_route_state()
 
-    st.title("Güvenli İzler")
-    st.caption("Çankaya odaklı MVP — OpenStreetMap altlığı, topluluk izleri (yeşil / sarı / kırmızı).")
+    st.title("🗺️ Güvenli İzler")
+    st.markdown("### Çankaya'da kadınlar için AI destekli güvenli rota analizi.")
+    st.markdown("*Yalnız değilsin — her adımda yanındayız. 💜*")
+    c1, c2, c3 = st.columns(3)
+    with c1:
+        st.write("📍 Rota Analizi")
+    with c2:
+        st.write("🤖 AI Yorumu")
+    with c3:
+        st.write("🛡️ Güven Skoru")
 
     ui_mode = st.sidebar.selectbox(
         "Mod",
