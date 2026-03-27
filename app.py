@@ -667,8 +667,8 @@ def _dynamic_ai_advice(route_payload: dict[str, Any], user_status: str) -> str |
             text = str(getattr(rsp, "text", "") or "").strip()
             if text:
                 return text
-        except Exception:
-            pass
+        except Exception as exc:
+            st.error(f"Gemini API çağrısı başarısız: {exc}")
 
     openai_key = _get_secret_value("OPENAI_API_KEY")
     if openai_key:
