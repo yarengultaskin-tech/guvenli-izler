@@ -772,13 +772,40 @@ def _build_advisor_segments_from_route_segments(raw_segments: Any) -> list[dict[
 
 def _heuristic_advice_text(route_payload: dict[str, Any], user_status: str) -> str:
     score = float(route_payload.get("safety_score") or 0.0)
-    ratio = float(route_payload.get("unknown_ratio") or 0.0)
     segments = route_payload.get("segments") if isinstance(route_payload.get("segments"), list) else []
     low_count = sum(1 for s in segments if isinstance(s, dict) and s.get("category") == "low")
     med_count = sum(1 for s in segments if isinstance(s, dict) and s.get("category") == "medium")
     hi_count = sum(1 for s in segments if isinstance(s, dict) and s.get("category") == "high")
     nearby = route_payload.get("nearby_stations") if isinstance(route_payload.get("nearby_stations"), list) else []
-    metro_txt = f"yakında {len(nearby)} metro noktası var" if nearby else "rota üzerinde net metro işareti az görünüyor"
+    total_distance = float(route_payload.get("distance_m") or 0.0)
+
+    def _seg_start_m(seg: dict[str, Any], idx: int) -> float:
+        v = seg.get("along_route_start_m")
+        try:
+            if v is not None:
+                return float(v)
+        except (TypeError, ValueError):
+            pass
+        return float(idx) * 250.0
+
+    low_starts: list[float] = []
+    for i, s in enumerate(segments):
+        if isinstance(s, dict) and s.get("category") == "low":
+            low_starts.append(_seg_start_m(s, i))
+    low_start_txt = f"~{int(round(min(low_starts)))}. metreden sonra" if low_starts else None
+
+    nearest_safe_txt = ""
+    if nearby:
+        p0 = nearby[0] if isinstance(nearby[0], dict) else {}
+        name = str(p0.get("name") or "metro noktası").strip()
+        dist = p0.get("distance_m") or p0.get("distance") or p0.get("dist_m")
+        try:
+            if dist is not None:
+                nearest_safe_txt = f"Yaklaşık {int(round(float(dist)))} metre ileride {name} var."
+            else:
+                nearest_safe_txt = f"Yakında {name} var, onu referans noktan yap."
+        except (TypeError, ValueError):
+            nearest_safe_txt = f"Yakında {name} var, onu referans noktan yap."
 
     mood = "🫂 Yalnızım"
     if "Bebek" in user_status or "Bavul" in user_status:
@@ -786,29 +813,52 @@ def _heuristic_advice_text(route_payload: dict[str, Any], user_status: str) -> s
     elif "Acelem" in user_status:
         mood = "🏃‍♀️ Acelem Var"
 
-    lines = [
-        f"Kız kardeşim, bu rota genel güvenlik puanı **%{score:.0f}**.",
-        f"Parça dağılımı: yüksek {hi_count}, orta {med_count}, düşük {low_count}.",
-        f"Veri belirsizliği oranı yaklaşık **%{ratio * 100.0:.0f}**; {metro_txt}.",
-    ]
-    if mood.startswith("🍼"):
-        lines.append("Bebek arabası/bavul için daha aydınlık ve ana cadde hissi veren parçaları tercih et, gerekirse kısa bir dolanma daha güvenli olur.")
-    elif mood.startswith("🏃"):
-        lines.append("Acelen varsa, puanı orta-yüksek kalan parçaları takip edip düşük puanlı geçişleri mümkün olduğunca kısa tut.")
+    if score >= 80:
+        level = "iyi"
+    elif score >= 50:
+        level = "orta"
     else:
-        lines.append("Yalnız yürürken düşük puanlı parçalarda telefonunu hazır tut, daha kalabalık noktaya yakın ilerlemek içini rahatlatır.")
+        level = "dikkat gerektiriyor"
+
+    lines = [f"Kız kardeşim, rota genel olarak **{level}** görünüyor (puan {score:.0f}/100)."]
+    if total_distance > 0:
+        lines.append(f"Toplam mesafe yaklaşık {int(round(total_distance))} metre.")
+
+    expect_parts: list[str] = []
+    if hi_count > 0:
+        expect_parts.append(f"{hi_count} bölüm daha rahat")
+    if med_count > 0:
+        expect_parts.append(f"{med_count} bölüm orta tempoda")
+    if low_count > 0:
+        expect_parts.append(f"{low_count} bölümde ekstra dikkat")
+    if expect_parts:
+        lines.append("Rota boyunca " + ", ".join(expect_parts) + ".")
+    if low_start_txt:
+        lines.append(f"Daha zayıf kısım {low_start_txt} başlıyor, orada adımlarını biraz hızlandır.")
+
+    tips: list[str] = []
+    if mood.startswith("🍼"):
+        tips.append("Bebek arabası/bavul ile ana caddede kal, dar geçit yerine bir sokak uzatmak daha güvenli olur.")
+    elif mood.startswith("🏃"):
+        tips.append("Acelen varsa düşük puanlı kısmı beklemeden geç, ama çapraz yola dalma.")
+    else:
+        tips.append("Yalnız yürürken düşük puanlı kısma girmeden telefonu cebinde hazır tut, çevreyi kontrol et 👀.")
+    if str(route_payload.get("time_mode") or "").lower() == "night":
+        tips.append("Geceyse kulaklığı çıkar, çevrenin sesini duyman iyi olur 🎧.")
+    if nearest_safe_txt:
+        tips.append(nearest_safe_txt)
     if score < 50:
-        lines.append("Bu rota biraz zorlayıcı görünüyor; mümkünse başlangıç/bitişi biraz kaydırıp tekrar rota çizmeni öneririm.")
-    elif score >= 80:
-        lines.append("İyi haber: rota genel olarak rahat görünüyor, yine de karanlık ara geçitleri hızlı geçelim.")
-    lines.append("Ben yanındayım, adım adım daha güvenli kalacak şekilde gideceğiz 💜")
+        tips.append("İstersen başlangıç ya da bitişi 1-2 sokak kaydırıp rotayı tekrar deneyelim ✅.")
+    lines.append(" ".join(tips))
+    lines.append("Yanındayım canım, adım adım bunu güvenli şekilde tamamlarız 🚶‍♀️💜.")
     return "\n\n".join(lines)
 
 
 def _dynamic_ai_advice(route_payload: dict[str, Any], user_status: str) -> str | None:
     prompt = (
-        "Sen korumacı bir kız kardeş gibi Türkçe konuşan güvenlik danışmanısın.\n"
-        "Rota özetini kısa ama somut önerilerle yorumla.\n"
+        "Sen Güvenli İzler uygulamasında büyük kız kardeş gibi konuşan AI refakatçisin.\n"
+        "4 bölümde yaz: genel durum, rota boyunca ne beklenir, pratik tavsiye, kapanış.\n"
+        "Teknik jargon kullanma; somut metre ve yakın güvenli nokta referansı ver.\n"
         f"Kullanıcı durumu: {user_status}\n"
         f"Rota verisi: {json.dumps(route_payload, ensure_ascii=False)[:6000]}"
     )
