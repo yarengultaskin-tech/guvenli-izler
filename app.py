@@ -981,23 +981,32 @@ def main() -> None:
 
     # IMPORTANT: use a stable key so click events persist.
     with col_map:
-        map_output = st_folium(
-            folium_map,
-            use_container_width=True,
-            height=520,
-            center=(float(CANKAYA_CENTER_LATITUDE), float(CANKAYA_CENTER_LONGITUDE)),
-            zoom=int(DEFAULT_ZOOM),
-            returned_objects=[
-                "last_clicked",
-                "last_object_clicked",
-                "last_active_drawing",
-                "all_drawings",
-                "bounds",
-                "zoom",
-                "center",
-            ],
-            key="guvenli_izler_map",
-        )
+        try:
+            map_output = st_folium(
+                folium_map,
+                use_container_width=True,
+                height=520,
+                center=(float(CANKAYA_CENTER_LATITUDE), float(CANKAYA_CENTER_LONGITUDE)),
+                zoom=int(DEFAULT_ZOOM),
+                returned_objects=[
+                    "last_clicked",
+                    "last_object_clicked",
+                    "last_active_drawing",
+                    "all_drawings",
+                    "bounds",
+                    "zoom",
+                    "center",
+                ],
+                key="guvenli_izler_map",
+            )
+        except Exception as exc:
+            # Streamlit Cloud'da component asset'i erişilemezse haritayı HTML olarak yine göster.
+            st.warning(
+                "Harita bileşeni yüklenemedi; yedek görüntüleme moduna geçildi. "
+                "Bu modda harita tıklama etkileşimi sınırlı olabilir."
+            )
+            st.components.v1.html(folium_map._repr_html_(), height=520, scrolling=False)
+            map_output = {}
 
     if col_adv is not None:
         with col_adv:
