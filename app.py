@@ -5,6 +5,7 @@ from __future__ import annotations
 import copy
 import json
 import math
+import os
 from pathlib import Path
 from typing import Any, Optional
 
@@ -20,7 +21,7 @@ from map_view import (
 )
 from utils.local_routing import compute_local_route_payload
 
-DATA_DIR = Path(__file__).resolve().parent / "data"
+DATA_DIR = Path(os.path.join(os.getcwd(), "data"))
 _WARNED_MESSAGES: set[str] = set()
 
 
@@ -60,29 +61,40 @@ def _geojson_points_to_rows(
     layer_name: str,
     bbox: dict[str, float],
 ) -> list[dict[str, Any]]:
-    if not isinstance(payload, dict):
-        return []
-    features = payload.get("features")
-    if not isinstance(features, list):
+    features: list[Any] = []
+    if isinstance(payload, dict):
+        if isinstance(payload.get("features"), list):
+            features = payload.get("features")  # type: ignore[assignment]
+        elif isinstance(payload.get("data"), list):
+            features = payload.get("data")  # type: ignore[assignment]
+    elif isinstance(payload, list):
+        features = payload
+    if not features:
         return []
     rows: list[dict[str, Any]] = []
     for ft in features:
         if not isinstance(ft, dict):
             continue
-        geom = ft.get("geometry")
+        geom = ft.get("geometry") if isinstance(ft.get("geometry"), dict) else {}
         props = ft.get("properties") if isinstance(ft.get("properties"), dict) else {}
-        if not isinstance(geom, dict):
-            continue
-        if str(geom.get("type")) != "Point":
-            continue
-        coords = geom.get("coordinates")
-        if not isinstance(coords, list) or len(coords) < 2:
-            continue
-        try:
-            lon = float(coords[0])
-            lat = float(coords[1])
-        except (TypeError, ValueError):
-            continue
+        lat: float | None = None
+        lon: float | None = None
+        if str(geom.get("type")) == "Point":
+            coords = geom.get("coordinates")
+            if isinstance(coords, list) and len(coords) >= 2:
+                try:
+                    lon = float(coords[0])
+                    lat = float(coords[1])
+                except (TypeError, ValueError):
+                    lat, lon = None, None
+        if lat is None or lon is None:
+            raw_lat = props.get("latitude", props.get("lat", ft.get("latitude", ft.get("lat"))))
+            raw_lon = props.get("longitude", props.get("lon", ft.get("longitude", ft.get("lon"))))
+            try:
+                lat = float(raw_lat)
+                lon = float(raw_lon)
+            except (TypeError, ValueError):
+                continue
         if not _bbox_contains(lat=lat, lon=lon, bbox=bbox):
             continue
         rows.append(
@@ -473,7 +485,10 @@ def _apply_route_from_api_payload(payload: dict[str, Any], time_mode_api: str) -
     st.session_state.route_segment_score_max = payload.get("segment_score_max")
     st.session_state.route_time_mode = payload.get("time_mode") or time_mode_api
     st.session_state.route_night_analysis = bool(payload.get("night_analysis"))
-    st.session_state.route_advisor_segments = payload.get("advisor_segments") or []
+    advisor_segments = payload.get("advisor_segments")
+    if not isinstance(advisor_segments, list) or not advisor_segments:
+        advisor_segments = _build_advisor_segments_from_route_segments(payload.get("segments"))
+    st.session_state.route_advisor_segments = advisor_segments or []
     adv, safe_point_popups, adv_err, adv_json_ok = _fetch_security_advisor(payload, time_mode_api)
     try:
         from backend.ai_advisor import strip_safe_point_json_from_advice_markdown as _strip_adv_json
@@ -510,14 +525,153 @@ def _map_polyline_tooltip_from_score(score: float | None) -> str:
     return "Düşük Güvenli Rota"
 
 
+def _build_advisor_segments_from_route_segments(raw_segments: Any) -> list[dict[str, Any]]:
+    if not isinstance(raw_segments, list):
+        return []
+    out: list[dict[str, Any]] = []
+    acc = 0.0
+    for i, seg in enumerate(raw_segments):
+        if not isinstance(seg, dict):
+            continue
+        pts = seg.get("points")
+        if not isinstance(pts, list) or len(pts) < 2:
+            continue
+        s = pts[0] if isinstance(pts[0], dict) else {}
+        e = pts[-1] if isinstance(pts[-1], dict) else {}
+        try:
+            slat = float(s.get("lat"))
+            slon = float(s.get("lon"))
+            elat = float(e.get("lat"))
+            elon = float(e.get("lon"))
+        except (TypeError, ValueError):
+            continue
+        seg_len = _haversine_m(slat, slon, elat, elon)
+        mid_lat = (slat + elat) / 2.0
+        mid_lon = (slon + elon) / 2.0
+        out.append(
+            {
+                "segment_length_m": seg_len,
+                "along_route_start_m": acc,
+                "along_route_end_m": acc + seg_len,
+                "along_route_mid_m": acc + (seg_len / 2.0),
+                "start": {"lat": slat, "lon": slon},
+                "end": {"lat": elat, "lon": elon},
+                "midpoint": {"lat": mid_lat, "lon": mid_lon},
+                "nearest_police": {
+                    "name": "Karakol",
+                    "distance_m": seg.get("nearest_police_dist"),
+                    "lat": None,
+                    "lon": None,
+                },
+                "nearest_pharmacy": {"name": None, "distance_m": None, "lat": None, "lon": None},
+                "nearest_metro": {
+                    "name": "Metro",
+                    "distance_m": seg.get("nearest_metro_dist"),
+                    "lat": None,
+                    "lon": None,
+                },
+                "nearest_taxi": {"name": None, "distance_m": None, "lat": None, "lon": None},
+                "lighting": {"nearest_lamp_distance_m": None, "lighting_available": True, "lat": None, "lon": None},
+                "index": i,
+            }
+        )
+        acc += seg_len
+    return out
+
+
+def _heuristic_advice_text(route_payload: dict[str, Any], user_status: str) -> str:
+    score = float(route_payload.get("safety_score") or 0.0)
+    ratio = float(route_payload.get("unknown_ratio") or 0.0)
+    segments = route_payload.get("segments") if isinstance(route_payload.get("segments"), list) else []
+    low_count = sum(1 for s in segments if isinstance(s, dict) and s.get("category") == "low")
+    med_count = sum(1 for s in segments if isinstance(s, dict) and s.get("category") == "medium")
+    hi_count = sum(1 for s in segments if isinstance(s, dict) and s.get("category") == "high")
+    nearby = route_payload.get("nearby_stations") if isinstance(route_payload.get("nearby_stations"), list) else []
+    metro_txt = f"yakında {len(nearby)} metro noktası var" if nearby else "rota üzerinde net metro işareti az görünüyor"
+
+    mood = "🫂 Yalnızım"
+    if "Bebek" in user_status or "Bavul" in user_status:
+        mood = "🍼 Bebek Arabam/Bavulum Var"
+    elif "Acelem" in user_status:
+        mood = "🏃‍♀️ Acelem Var"
+
+    lines = [
+        f"Kız kardeşim, bu rota genel güvenlik puanı **%{score:.0f}**.",
+        f"Parça dağılımı: yüksek {hi_count}, orta {med_count}, düşük {low_count}.",
+        f"Veri belirsizliği oranı yaklaşık **%{ratio * 100.0:.0f}**; {metro_txt}.",
+    ]
+    if mood.startswith("🍼"):
+        lines.append("Bebek arabası/bavul için daha aydınlık ve ana cadde hissi veren parçaları tercih et, gerekirse kısa bir dolanma daha güvenli olur.")
+    elif mood.startswith("🏃"):
+        lines.append("Acelen varsa, puanı orta-yüksek kalan parçaları takip edip düşük puanlı geçişleri mümkün olduğunca kısa tut.")
+    else:
+        lines.append("Yalnız yürürken düşük puanlı parçalarda telefonunu hazır tut, daha kalabalık noktaya yakın ilerlemek içini rahatlatır.")
+    if score < 50:
+        lines.append("Bu rota biraz zorlayıcı görünüyor; mümkünse başlangıç/bitişi biraz kaydırıp tekrar rota çizmeni öneririm.")
+    elif score >= 80:
+        lines.append("İyi haber: rota genel olarak rahat görünüyor, yine de karanlık ara geçitleri hızlı geçelim.")
+    lines.append("Ben yanındayım, adım adım daha güvenli kalacak şekilde gideceğiz 💜")
+    return "\n\n".join(lines)
+
+
+def _dynamic_ai_advice(route_payload: dict[str, Any], user_status: str) -> str | None:
+    prompt = (
+        "Sen korumacı bir kız kardeş gibi Türkçe konuşan güvenlik danışmanısın.\n"
+        "Rota özetini kısa ama somut önerilerle yorumla.\n"
+        f"Kullanıcı durumu: {user_status}\n"
+        f"Rota verisi: {json.dumps(route_payload, ensure_ascii=False)[:6000]}"
+    )
+
+    gemini_key = (os.getenv("GEMINI_API_KEY") or "").strip()
+    if gemini_key:
+        try:
+            import google.generativeai as genai
+
+            genai.configure(api_key=gemini_key)
+            model = genai.GenerativeModel(os.getenv("GEMINI_MODEL", "gemini-1.5-flash"))
+            rsp = model.generate_content(prompt)
+            text = str(getattr(rsp, "text", "") or "").strip()
+            if text:
+                return text
+        except Exception:
+            pass
+
+    openai_key = (os.getenv("OPENAI_API_KEY") or "").strip()
+    if openai_key:
+        try:
+            from openai import OpenAI
+
+            client = OpenAI(api_key=openai_key)
+            rsp = client.chat.completions.create(
+                model=os.getenv("OPENAI_MODEL", "gpt-4o-mini"),
+                temperature=0.4,
+                messages=[
+                    {"role": "system", "content": "Türkçe, destekleyici, kısa ve somut güvenlik önerileri ver."},
+                    {"role": "user", "content": prompt},
+                ],
+            )
+            text = str(rsp.choices[0].message.content or "").strip()
+            if text:
+                return text
+        except Exception:
+            pass
+    return None
+
+
 def _fetch_security_advisor(
     route_payload: dict[str, Any],
     time_mode_api: str,
 ) -> tuple[Optional[str], list[dict[str, Any]], Optional[str], bool]:
-    """Dosyadan danışman verisi oku → (tavsiye_metni, safe_point_popups, hata_metni, advisor_json_ok)."""
+    """Dinamik danışman üret; yoksa dosya/heuristic fallback kullan."""
     segments = route_payload.get("segments")
     total, unk_c, low_c = _route_segment_light_stats(segments)
-    _ = total, unk_c, low_c  # Hesaplar metin fallback'inde ileride kullanılabilir.
+    _ = total, unk_c, low_c
+
+    user_status = st.session_state.get("user_status") or "🫂 Yalnızım"
+    dynamic_text = _dynamic_ai_advice(route_payload, str(user_status))
+    if dynamic_text:
+        return dynamic_text, [], None, True
+
     candidates = [
         DATA_DIR / f"advisor_{time_mode_api}.json",
         DATA_DIR / "advisor.json",
@@ -533,12 +687,10 @@ def _fetch_security_advisor(
         text = str(payload.get("advice") or "").strip()
         safe_points = _parse_safe_point_popups(payload.get("safe_point_popups"))
         json_ok = bool(payload.get("advisor_json_ok", True))
-        return (text or None), safe_points, None, json_ok
+        if text:
+            return text, safe_points, None, json_ok
 
-    fallback_text = (
-        "Kişisel not dosyası bulunamadı. `data/advisor.json` dosyasını ekleyebilir veya "
-        "`data/advisor_day.json` / `data/advisor_night.json` kullanabilirsin."
-    )
+    fallback_text = _heuristic_advice_text(route_payload, str(user_status))
     return fallback_text, [], None, True
 
 
@@ -1016,6 +1168,9 @@ def main() -> None:
     if ui_mode == "Güvenli Rota":
         segments_raw = st.session_state.get("route_advisor_segments") or []
         segments = [s for s in segments_raw if isinstance(s, dict)] if isinstance(segments_raw, list) else []
+        if not segments:
+            base_segments = st.session_state.get("route_segments")
+            segments = _build_advisor_segments_from_route_segments(base_segments)
         safe_points = _parse_safe_point_popups(st.session_state.get("route_safe_point_popups"))
 
         if segments:
@@ -1065,6 +1220,9 @@ def main() -> None:
             if safe_points:
                 with st.expander("Güvenli nokta notları (liste)", expanded=False):
                     _render_safe_points_friendly(safe_points)
+        elif st.session_state.get("route_polyline"):
+            st.subheader("Yol Günlüğü")
+            st.caption("Rota hesaplandı ancak kart üretmek için yeterli segment verisi yok.")
 
     if ui_mode == "Güvenli Rota" and isinstance(map_output, dict):
         click_obj = map_output.get("last_clicked")

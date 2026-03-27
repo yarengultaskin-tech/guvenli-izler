@@ -2,6 +2,7 @@ from __future__ import annotations
 
 import json
 import math
+import os
 from pathlib import Path
 from typing import Any
 
@@ -37,27 +38,40 @@ def _load_geojson_points(path: Path) -> list[dict[str, Any]]:
         payload = json.loads(path.read_text(encoding="utf-8"))
     except Exception:
         return []
-    if not isinstance(payload, dict):
-        return []
-    features = payload.get("features")
-    if not isinstance(features, list):
+    features: list[Any] = []
+    if isinstance(payload, dict):
+        if isinstance(payload.get("features"), list):
+            features = payload.get("features")  # type: ignore[assignment]
+        elif isinstance(payload.get("data"), list):
+            features = payload.get("data")  # type: ignore[assignment]
+    elif isinstance(payload, list):
+        features = payload
+    if not features:
         return []
     rows: list[dict[str, Any]] = []
     for ft in features:
         if not isinstance(ft, dict):
             continue
-        geom = ft.get("geometry")
+        geom = ft.get("geometry") if isinstance(ft.get("geometry"), dict) else {}
         props = ft.get("properties") if isinstance(ft.get("properties"), dict) else {}
-        if not isinstance(geom, dict) or str(geom.get("type")) != "Point":
-            continue
-        coords = geom.get("coordinates")
-        if not isinstance(coords, list) or len(coords) < 2:
-            continue
-        try:
-            lon = float(coords[0])
-            lat = float(coords[1])
-        except (TypeError, ValueError):
-            continue
+        lat: float | None = None
+        lon: float | None = None
+        if str(geom.get("type")) == "Point":
+            coords = geom.get("coordinates")
+            if isinstance(coords, list) and len(coords) >= 2:
+                try:
+                    lon = float(coords[0])
+                    lat = float(coords[1])
+                except (TypeError, ValueError):
+                    lat, lon = None, None
+        if lat is None or lon is None:
+            cand_lat = props.get("latitude", props.get("lat", ft.get("latitude", ft.get("lat"))))
+            cand_lon = props.get("longitude", props.get("lon", ft.get("longitude", ft.get("lon"))))
+            try:
+                lat = float(cand_lat)
+                lon = float(cand_lon)
+            except (TypeError, ValueError):
+                continue
         rows.append(
             {
                 "lat": lat,
@@ -131,11 +145,14 @@ def compute_local_route_payload(
     end_lon: float,
     time_mode: str,
 ) -> dict[str, Any]:
-    police = _load_geojson_points(data_dir / "police_stations.geojson")
-    lamps = _load_geojson_points(data_dir / "street_lamps.geojson")
-    metro = _load_geojson_points(data_dir / "metro_stations.geojson")
-    transit = _load_geojson_points(data_dir / "transit.geojson")
-    traces = _load_geojson_points(data_dir / "traces.geojson")
+    root_data_dir = Path(os.path.join(os.getcwd(), "data"))
+    # data_dir param korunur; çalışma dizini farklıysa cwd/data tercih edilir.
+    active_data_dir = root_data_dir if root_data_dir.exists() else data_dir
+    police = _load_geojson_points(active_data_dir / "police_stations.geojson")
+    lamps = _load_geojson_points(active_data_dir / "street_lamps.geojson")
+    metro = _load_geojson_points(active_data_dir / "metro_stations.geojson")
+    transit = _load_geojson_points(active_data_dir / "transit.geojson")
+    traces = _load_geojson_points(active_data_dir / "traces.geojson")
 
     # Transit verisinde metro benzeri noktalar varsa metro listesine ekle.
     for p in transit:
