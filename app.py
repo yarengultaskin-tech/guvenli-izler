@@ -1441,6 +1441,9 @@ def main() -> None:
             api_norm = []
         merged = _merge_metro_markers(api_norm, static_metro)
         metro_for_route = merged if merged else None
+    st.info(
+        "📍 Başlangıç ve bitiş noktalarını harita üzerinden seçin, ardından sol menüden Güvenli Rota moduna geçerek yapay zeka analizini görün."
+    )
     folium_map = build_cankaya_map(
         traces=traces,
         extra_layers=extra_layers,
