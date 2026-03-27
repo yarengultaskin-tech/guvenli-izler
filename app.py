@@ -131,6 +131,29 @@ def _normalize_user_status(raw: Any) -> str:
     return "🫂 Yalnızım"
 
 
+def _set_route_point(kind: str, lat: float, lon: float) -> None:
+    """Başlangıç/bitiş koordinatlarını hem eski hem yeni state anahtarlarında tut."""
+    key_point = "start_point" if kind == "start" else "end_point"
+    key_coord = "start_coord" if kind == "start" else "end_coord"
+    obj = {"lat": float(lat), "lon": float(lon)}
+    st.session_state[key_point] = obj
+    st.session_state[key_coord] = obj
+
+
+def _get_route_point(kind: str) -> dict[str, float] | None:
+    """Başlangıç/bitiş noktasını coord veya point anahtarlarından güvenli oku."""
+    key_point = "start_point" if kind == "start" else "end_point"
+    key_coord = "start_coord" if kind == "start" else "end_coord"
+    for key in (key_coord, key_point):
+        raw = st.session_state.get(key)
+        if isinstance(raw, dict):
+            try:
+                return {"lat": float(raw["lat"]), "lon": float(raw["lon"])}
+            except (KeyError, TypeError, ValueError):
+                continue
+    return None
+
+
 def _get_streamlit_secret(key: str) -> str:
     """Read a required secret from Streamlit secrets only."""
     try:
@@ -1136,6 +1159,10 @@ def _init_route_state() -> None:
         st.session_state.start_point = None  # {"lat": float, "lon": float} | None
     if "end_point" not in st.session_state:
         st.session_state.end_point = None  # {"lat": float, "lon": float} | None
+    if "start_coord" not in st.session_state:
+        st.session_state.start_coord = None  # {"lat": float, "lon": float} | None
+    if "end_coord" not in st.session_state:
+        st.session_state.end_coord = None  # {"lat": float, "lon": float} | None
     if "selecting_mode" not in st.session_state:
         st.session_state.selecting_mode = None  # None | "start" | "end"
     if "selecting" not in st.session_state:
@@ -1339,7 +1366,7 @@ def main() -> None:
             st.session_state._last_geocode_start_query = sq
             if found:
                 lat, lon, addr = found
-                st.session_state.start_point = {"lat": lat, "lon": lon}
+                _set_route_point("start", lat, lon)
                 st.sidebar.success(f"Başlangıç bulundu: {addr}")
                 geocode_changed = True
             else:
@@ -1349,7 +1376,7 @@ def main() -> None:
             st.session_state._last_geocode_end_query = eq
             if found:
                 lat, lon, addr = found
-                st.session_state.end_point = {"lat": lat, "lon": lon}
+                _set_route_point("end", lat, lon)
                 st.sidebar.success(f"Varış bulundu: {addr}")
                 geocode_changed = True
             else:
@@ -1357,17 +1384,20 @@ def main() -> None:
         if geocode_changed:
             st.rerun()
 
+        start_pt = _get_route_point("start")
+        end_pt = _get_route_point("end")
+
         if (
             st.session_state.get("route_polyline")
-            and isinstance(st.session_state.get("start_point"), dict)
-            and isinstance(st.session_state.get("end_point"), dict)
+            and isinstance(start_pt, dict)
+            and isinstance(end_pt, dict)
             and st.session_state.get("route_time_mode") != route_time_mode_api
         ):
             try:
-                start_lat = float(st.session_state.start_point["lat"])
-                start_lon = float(st.session_state.start_point["lon"])
-                end_lat = float(st.session_state.end_point["lat"])
-                end_lon = float(st.session_state.end_point["lon"])
+                start_lat = float(start_pt["lat"])
+                start_lon = float(start_pt["lon"])
+                end_lat = float(end_pt["lat"])
+                end_lon = float(end_pt["lon"])
                 with st.spinner("Zaman modu değişti; rota ve puanlar yeniden hesaplanıyor…"):
                     payload = compute_local_route_payload(
                         data_dir=DATA_DIR,
@@ -1394,8 +1424,8 @@ def main() -> None:
                 st.session_state.selecting = "end"  # backward compatible
                 st.rerun()
 
-        start_ok = isinstance(st.session_state.start_point, dict)
-        end_ok = isinstance(st.session_state.end_point, dict)
+        start_ok = isinstance(start_pt, dict)
+        end_ok = isinstance(end_pt, dict)
         st.sidebar.markdown("**Başlangıç**")
         st.sidebar.caption("Haritadan seçildi ✓" if start_ok else "Henüz seçilmedi — haritaya tıkla.")
         st.sidebar.markdown("**Bitiş**")
@@ -1416,14 +1446,17 @@ def main() -> None:
         )
 
         if st.sidebar.button("Rota Çiz", type="primary"):
-            if not st.session_state.start_point or not st.session_state.end_point:
-                st.sidebar.error("Lütfen haritadan başlangıç ve bitiş seçin.")
+            if not start_pt or not end_pt:
+                if not sq and not eq:
+                    st.sidebar.error("Lütfen haritadan başlangıç ve bitiş seçin.")
+                else:
+                    st.sidebar.warning("Adres araması tamamlanmadı canım; yer adını netleştirip tekrar deneyelim.")
             else:
                 try:
-                    start_lat = float(st.session_state.start_point["lat"])
-                    start_lon = float(st.session_state.start_point["lon"])
-                    end_lat = float(st.session_state.end_point["lat"])
-                    end_lon = float(st.session_state.end_point["lon"])
+                    start_lat = float(start_pt["lat"])
+                    start_lon = float(start_pt["lon"])
+                    end_lat = float(end_pt["lat"])
+                    end_lon = float(end_pt["lon"])
 
                     with st.spinner("Güvenli yol hesaplanıyor..."):
                         payload = compute_local_route_payload(
@@ -1548,8 +1581,8 @@ def main() -> None:
         else None,
         route_metro_stations=metro_for_route,
         advisor_safe_points=st.session_state.route_safe_point_popups if ui_mode == "Güvenli Rota" else None,
-        start_point=st.session_state.start_point if ui_mode == "Güvenli Rota" else None,
-        end_point=st.session_state.end_point if ui_mode == "Güvenli Rota" else None,
+        start_point=_get_route_point("start") if ui_mode == "Güvenli Rota" else None,
+        end_point=_get_route_point("end") if ui_mode == "Güvenli Rota" else None,
         route_color=route_color,
         route_label=_map_polyline_tooltip_from_score(score),
         center=(float(CANKAYA_CENTER_LATITUDE), float(CANKAYA_CENTER_LONGITUDE)),
@@ -1721,12 +1754,12 @@ def main() -> None:
                 if st.session_state._last_processed_click != click_key:
                     st.session_state._last_processed_click = click_key
                     if st.session_state.selecting_mode == "start":
-                        st.session_state.start_point = {"lat": click_lat, "lon": click_lon}
+                        _set_route_point("start", click_lat, click_lon)
                         st.session_state.selecting_mode = None
                         st.session_state.selecting = None  # backward compatible
                         st.rerun()
                     elif st.session_state.selecting_mode == "end":
-                        st.session_state.end_point = {"lat": click_lat, "lon": click_lon}
+                        _set_route_point("end", click_lat, click_lon)
                         st.session_state.selecting_mode = None
                         st.session_state.selecting = None  # backward compatible
                         st.rerun()
