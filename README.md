@@ -1,23 +1,18 @@
 # 🗺️ Güvenli İzler (Safe Tracks)
 
-**Ankara Odaklı, GIS ve Yapay Zeka Destekli Akıllı Güvenlik Rota Planlayıcı**
+## 🚩 Problem
 
-> Özellikle gece geç saatlerde seyahat eden yayalar ve öğrenciler için tasarlanmış, güvenlik odaklı bir rota asistanı.
+Günümüzde pek çok kadın, özellikle akşam saatlerinde sokakta yalnız yürürken kendini ciddi anlamda güvensiz hissetmektedir. Mevcut navigasyon araçları kullanıcıyı sadece "en kısa" mesafeye odaklı ara sokaklara yönlendirirken; aydınlatma yetersizliği, ıssız alan,karakol yakınlığı ve geçmiş güvenlik verileri gibi hayati parametreleri tamamen göz ardı etmektedir. Bu durum, şehir içi hareketliliği kadınlar için bir mesafe probleminden ziyade, bir güvenlik bariyerine dönüştürmektedir.
 
-[![Python](https://img.shields.io/badge/Python-3.10+-3776AB?style=flat&logo=python&logoColor=white)](https://www.python.org/)
-[![Streamlit](https://img.shields.io/badge/Streamlit-Frontend-FF4B4B?style=flat&logo=streamlit&logoColor=white)](https://streamlit.io/)
-[![FastAPI](https://img.shields.io/badge/FastAPI-Backend-009688?style=flat&logo=fastapi&logoColor=white)](https://fastapi.tiangolo.com/)
-[![License: MIT](https://img.shields.io/badge/License-MIT-yellow.svg)](https://opensource.org/licenses/MIT)
 
----
+ ## 💡 Çözüm
+ 
+Güvenli İzler, Geomatik Mühendisliği prensiplerini modern yapay zeka teknolojileriyle birleştirerek "en kısa" yolu değil, "en güvenli" yolu sunan dinamik bir web harita uygulamasıdır. Uygulamanın kalbinde yer alan Google Gemini AI, OpenStreetMap verileri üzerinden çekilen aydınlatma, işletme yoğunluğu ve çevresel faktörleri gerçek zamanlı olarak analiz eder. Sadece bir rota çizmekle kalmaz, kullanıcıya o güzergahın neden güvenli olduğunu açıklayan (örneğin: "Bu rota ana cadde üzerindedir ve ışıklandırması yüksektir") mantıksal bir güvenlik analizi sunarak bilinçli ve güvenli bir ulaşım deneyimi sağlar.
 
-## 📖 Proje Hakkında
-
-**Güvenli İzler**, OpenStreetMap verilerini, gelişmiş coğrafi analiz yöntemlerini (GIS) ve Google Gemini AI'yı bir araya getirerek kullanıcıya sadece "en kısa" değil, **"en güvenli"** yolu sunan akıllı bir rota planlayıcısıdır.
 
 ---
 
-## ✨ Özellikler
+ ## ✨ Özellikler
 
 - 🔦 **Akıllı Güvenlik Puanlaması** — Aydınlatma direkleri, ana yollar ve güvenli noktalar (metro, karakol vb.) üzerinden dinamik ağırlıklandırma
 - 🤖 **AI Sanal Refakatçi** — Google Gemini AI entegrasyonu ile rotanın neden güvenli olduğuna dair metin analizi ve tavsiyeler
@@ -103,21 +98,6 @@ Uygulama varsayılan olarak `http://localhost:8501` adresinde açılır.
 
 ---
 
-## 🤝 Katkıda Bulunma
-
-Katkılarınızı memnuniyetle karşılıyoruz! Lütfen bir `issue` açın veya `pull request` gönderin.
-
-1. Projeyi fork'layın
-2. Yeni bir branch oluşturun (`git checkout -b feature/yeni-ozellik`)
-3. Değişikliklerinizi commit'leyin (`git commit -m 'Yeni özellik eklendi'`)
-4. Branch'inizi push'layın (`git push origin feature/yeni-ozellik`)
-5. Pull Request açın
-
----
-
-## 📄 Lisans
-
-Bu proje [MIT Lisansı](https://opensource.org/licenses/MIT) kapsamında lisanslanmıştır.
 
 ---
 
