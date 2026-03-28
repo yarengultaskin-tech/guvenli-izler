@@ -23,9 +23,15 @@
 - 🤖 **AI Sanal Refakatçi** — Google Gemini AI entegrasyonu ile rotanın neden güvenli olduğuna dair metin analizi ve tavsiyeler
 - 🗺️ **İnteraktif Harita** — Streamlit tabanlı gerçek zamanlı görselleştirme ve kullanıcı dostu kontrol paneli
 - 🧩 **Modüler Mimari** — `features/` klasörü altında toplanmış, temiz ve sürdürülebilir kod yapısı
-
+ 
 ---
 
+## Canlı Demo
+Yayın Linki:https://guvenli-izlerv2.streamlit.app/
+
+Demo Video: https://www.loom.com/share/ac4d95d383944023bce1f7b30c524cd2
+
+ 
 ## 🛠️ Teknoloji Yığını
 
 | Katman | Teknoloji |
