@@ -26,6 +26,8 @@ Yayın Linki:https://guvenli-izlerv2.streamlit.app/
 
 Demo Video: https://www.loom.com/share/ac4d95d383944023bce1f7b30c524cd2
 
+Notion Proje Portfolyosu: https://giddy-limit-c8d.notion.site/G-venli-zler-Proje-Portfolyosu-330422358ce9806cab40f80d5db76387?source=copy_link
+
  
 ## 🛠️ Teknoloji Yığını
 
